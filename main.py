@@ -18,6 +18,7 @@ import numpy as np
 # ------------------------------------------------------------------------------
 
 import calcModelForces 
+import calcWindStats
 # import calcForcesFromWindtunnel as FFWT
 
 # ------------------------------------------------------------------------------
@@ -42,6 +43,10 @@ def main():
     modelForces.calcModelBaseForces()
 
     modelForces.calcModelFloorForces()
+
+    windStats = calcWindStats.windStats(uH_f)
+
+    windStats.calcWindStats()
 
     # # Calculate Forces from wind tunnel results
     # Fpm_D, Fpm_L, Mpm_D, Mpm_L = FFWT.calcModelBaseForces(filename)
