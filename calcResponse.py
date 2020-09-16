@@ -9,10 +9,12 @@
 # Libraries
 # ------------------------------------------------------------------------------  
 import numpy as np
+import scipy as sp
 # ------------------------------------------------------------------------------
 # Imported functions
 # ------------------------------------------------------------------------------
 from helpers.pyExtras import getKeyList
+from helpers.txtEditor import writeToTxt
 # ------------------------------------------------------------------------------
 # Abbreviations
 # ------------------------------------------------------------------------------
@@ -34,12 +36,14 @@ from helpers.pyExtras import getKeyList
 # ------------------------------------------------------------------------------  
 
 class response(object):
-    def __init__(self, modelForces, uH_fs, H_fs):
+    def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
         """Scale time/freq. from model to full scale
         :param modelForce: obj w/ wind tunnel measurements
+        :param RPeriod: str w/ return period of wind speed
         :param uH_fs, H_fs: flt w/ full scale building properties
         """
         self.modelForces = modelForces
+        self.RPeriod= RPeriod
         self.H_fs   = H_fs
         self.uH_fs  = uH_fs
     
@@ -76,9 +80,129 @@ class response(object):
         self.modelForces.BM_p_fs_D= self.modelForces.BM_p_ms_D * self.lambda_M
         self.modelForces.BM_p_fs_L= self.modelForces.BM_p_ms_L * self.lambda_M
 
-# class baseResponse(response):
-#     def __init__(self):
-#         super.__init__()
+    def transToSpectralDomain(self, F_p, dT):
+        """Transform time series of forces into the spectral domain
+        """
+        # Length of time series
+        n    = np.shape(F_p)[0]
+        N    = n//2 
+
+        # Get the Spectral Density, only positive half
+        S_p = abs(np.fft.fft(F_p)[0:N])
+
+        # Compute the power spectra density
+        S_p = S_p ** 2 
+        
+        # According to "Boggs - Wind Loading ...[1991], (p.237)": S(f)+ = 2 * S(f)+/-
+        S_p = 2 * S_p
+
+        # Scaling Factor
+        S_p = S_p / n
+
+        # Scaling Factor
+        S_p = S_p * dT 
+
+        # Compute the frequencies, only positive half
+        f = np.fft.fftfreq(n, dT)[0:N]
+
+        return S_p, f
+
+    def calcSpectralResponse(self, f, S_p, omega_e, D):
+        """Calculate the response spectrum
+        """
+        # Length of spectrum
+        N = np.shape(S_p)[0]
+
+        # Frequency - Circular frequency
+        omega_p = 2 * np.pi * f
+
+        # Apply Dynamic amplification factor
+        S_r = np.zeros(N)
+
+        for i in range(0, N):
+            eta_i   = omega_p[i]/omega_e
+            H_i     = response.mechanicalAdmittance(self, eta_i, D)
+            S_r[i]  = abs(H_i)**2 * S_p[i]
+
+        return S_r
+
+    def mechanicalAdmittance(self, eta, D):
+        """Mechanical admittance of the 1-DOF System
+        """
+        # Dynamic amplification factor
+        H_f = 1 / np.sqrt((1-eta**2)**2 + (2*D*eta)**2)
+        return H_f
+
+    def numericalIntSpectrum(self, dT, S_r):
+        """Integrate the response spectrum
+        """
+        # Length of spectrum
+        N = np.shape(S_r)[0]
+
+        # Nyquist frequency
+        f_nyq = 1 / (2 * dT)
+
+        # Sample spacing df
+        df = f_nyq / N 
+
+        # Perform the numerical integration with Simpson rule
+        F_ms = sp.integrate.simps(S_r, dx=df) 
+
+        # Return directly RMS
+        F_rms = np.sqrt(F_ms)
+        return F_rms
+
+    def peakFactor(self, fe, T):
+        """Compute the peak factor
+        """
+        g_peak = np.sqrt(2 * np.log(fe * T)) + 0.5772 / np.sqrt((2 * np.log(fe * T)))
+        return g_peak
+
+
+class BaseResponseForces(response):
+    def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
+        super().__init__(modelForces, RPeriod, uH_fs, H_fs)
+
+    def calcLoadStats(self):
+        # Investigated wind speed
+        writeToTxt("loadStats.txt", "u_H_mean:      " + '{:02.3f}'.format(self.uH_fs))
+        writeToTxt("loadStats.txt", "Return Period: " + self.RPeriod)
+        
+        # Base moment stats, drag direction
+        writeToTxt("loadStats.txt", "Base moment in drag direction [kNm]")
+        self.BM_p_fs_D_mean = np.mean(self.modelForces.BM_p_fs_D)
+        writeToTxt("loadStats.txt", "F_p_mean:      " + '{:02.3f}'.format(self.BM_p_fs_D_mean))
+
+        self.BM_p_fs_D_max  = np.max(self.modelForces.BM_p_fs_D)
+        writeToTxt("loadStats.txt", "F_p_max:       " + '{:02.3f}'.format(self.BM_p_fs_D_max))
+
+        self.BM_p_fs_D_min  = np.min(self.modelForces.BM_p_fs_D)
+        writeToTxt("loadStats.txt", "F_p_min:       " + '{:02.3f}'.format(self.BM_p_fs_D_min))
+
+        self.BM_p_fs_D_std  = np.std(self.modelForces.BM_p_fs_D)
+        writeToTxt("loadStats.txt", "F_p_std:       " + '{:02.3f}'.format(self.BM_p_fs_D_std))
+
+        # Base moment stats, lift direction
+        writeToTxt("loadStats.txt", "Base moment in lift direction [kNm]")
+        self.BM_p_fs_L_mean = np.mean(self.modelForces.BM_p_fs_L)
+        writeToTxt("loadStats.txt", "F_p_mean:      " + '{:02.3f}'.format(self.BM_p_fs_L_mean))
+
+        self.BM_p_fs_L_max  = np.max(self.modelForces.BM_p_fs_L)
+        writeToTxt("loadStats.txt", "F_p_max:       " + '{:02.3f}'.format(self.BM_p_fs_L_max))
+
+        self.BM_p_fs_L_min  = np.min(self.modelForces.BM_p_fs_L)
+        writeToTxt("loadStats.txt", "F_p_min:       " + '{:02.3f}'.format(self.BM_p_fs_L_min ))
+
+        self.BM_p_fs_L_std  = np.std(self.modelForces.BM_p_fs_L)
+        writeToTxt("loadStats.txt", "F_p_std:       " + '{:02.3f}'.format(self.BM_p_fs_L_std))
+
+class TipResponseDeflections(response):
+    def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
+        super().__init__(modelForces, RPeriod, uH_fs, H_fs)
+
+class TipResponseAccelerations(response):
+    def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
+        super().__init__(modelForces, RPeriod, uH_fs, H_fs)
 
 
 # ------------------------------------------------------------------------------

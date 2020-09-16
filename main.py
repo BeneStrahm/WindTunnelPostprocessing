@@ -30,7 +30,8 @@ from helpers.pyExtras import getKeyList
 
 def main():
     # Get name of input file
-    fname = sys.argv [1]
+    # fname = sys.argv [1]
+    fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing-1//T115_4_000_1.mat"
 
     # Full scale building properties
     uH_f    = 41.13
@@ -39,26 +40,33 @@ def main():
     omega_e = 2 * np.pi * f_e
     D       = 0.02
 
+    # Initialize class modelForce
     modelForces = calcModelForces.modelForces(fname)
 
+    # Load wind tunnel data
     modelForces.loadWindtunnelData()
 
+    # Sum up base forces
     modelForces.calcModelBaseForces()
 
+    # Sum up forces at each level
     modelForces.calcModelFloorForces()
 
+    # Initialize class windStats
     windStats = calcWindStats.windStats(uH_f)
 
+    # Calculate wind speeds at different return periods
     windStats.calcWindStats()
 
-    for key, value in getKeyList(windStats.uH_fs):
-        print(key)
+    # Calculate the base response forces for different wind speeds
+    for RPeriod in getKeyList(windStats.uH_fs):
+        BaseResponseForces = calcResponse.BaseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
 
-    baseResponse = calcResponse.response(modelForces, uH_f, H_f)
+        BaseResponseForces.scaleTime()
 
-    baseResponse.scaleTime()
+        BaseResponseForces.scaleForces()
 
-    baseResponse.scaleForces()
+        BaseResponseForces.calcLoadStats()
 
     # # Calculate Forces from wind tunnel results
     # Fpm_D, Fpm_L, Mpm_D, Mpm_L = FFWT.calcModelBaseForces(filename)
