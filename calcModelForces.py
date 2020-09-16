@@ -48,10 +48,21 @@ class modelForces(object):
         """        
         # Load matlab file
         mat         = h5s.loadmat(self.fname)
+
+        # Pressure coeff.
         self.Cp     = mat['Wind_pressure_coefficients']
         self.Loc    = mat['Location_of_measured_points']
+
+        # Wind speeds
         self.uH_ms  = float(mat['Uh_AverageWindSpeed'][0])
+
+        # Time scales
         self.f_ms   = float(mat['Sample_frequency'][0])
+        self.T_ms   = float(mat['Sample_period'][0])
+        self.nT     = np.shape(self.Cp)[0]
+
+        # Geometrie [in m]
+        self.H_ms   = float(mat['Building_height'][0])
 
         # Coordinates [in m], number and face of measurement points
         self.x      = self.Loc[0]
@@ -62,9 +73,6 @@ class modelForces(object):
         # Get levels
         self.z_lev  = list(set(self.z))
         self.nz     = len(self.z_lev)
-
-        # Number of time steps
-        self.nT     = np.shape(self.Cp)[0]
         
         # Measurement area [in m]
         self.A_i    = 0.02 * 0.02
