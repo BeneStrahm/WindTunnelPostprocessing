@@ -25,7 +25,7 @@ from helpers.pyExtras import getKeyList
 # D...  drag
 # M...  moment
 # F...  force
-# h...  (at) height of building
+# H...  (at) height of building
 
 # ------------------------------------------------------------------------------
 # Classes
