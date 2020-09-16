@@ -26,6 +26,8 @@ from helpers.pyExtras import getKeyList
 # M...  moment
 # F...  force
 # H...  (at) height of building
+# sp..  sample
+# f...  frequency
 
 # ------------------------------------------------------------------------------
 # Classes

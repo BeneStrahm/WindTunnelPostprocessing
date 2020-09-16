@@ -28,6 +28,9 @@ import pandas as pd
 # D...  drag
 # M...  moment
 # F...  force
+# H...  (at) height of building
+# sp..  sample
+# f...  frequency
 
 # ------------------------------------------------------------------------------
 # Classes
@@ -57,7 +60,7 @@ class modelForces(object):
         self.uH_ms  = float(mat['Uh_AverageWindSpeed'][0])
 
         # Time scales
-        self.f_ms   = float(mat['Sample_frequency'][0])
+        self.fsp_ms = float(mat['Sample_frequency'][0])
         self.T_ms   = float(mat['Sample_period'][0])
         self.nT     = np.shape(self.Cp)[0]
 
