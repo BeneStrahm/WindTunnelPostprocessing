@@ -26,6 +26,8 @@ from helpers.pyExtras import getKeyList
 # M...  moment
 # F...  force
 # H...  (at) height of building
+# sp..  sample
+# f...  frequency
 
 # ------------------------------------------------------------------------------
 # Classes
@@ -43,26 +45,40 @@ class response(object):
     
     def scaleTime(self):
         """Scale time/freq. from model to full scale
-        :param uH_f, H_f: float w/ full scale building properties
         """
         # Model properties
-        self.modelForces.dT_ms    = 1 / self.modelForces.fs
+        self.modelForces.dT_ms    = 1 / self.modelForces.fsp_ms
 
         # Scaling factors
-        lambda_u = self.uH_fs / uH_m
-        lambda_g = self.H_fs / H_m 
-        lambda_f = lambda_u / lambda_g
-        lambda_t = 1 / lambda_f
+        self.lambda_u = self.uH_fs / self.modelForces.uH_ms
+        self.lambda_g = self.H_fs / self.modelForces.H_ms
+        self.lambda_f = self.lambda_u / self.lambda_g
+        self.lambda_t = 1 / self.lambda_f
 
         # Scale quantities
-        dT_f    = lambda_t * dT_m
-        f_f     = lambda_f * f_m
+        self.dT_fs    = self.lambda_t * self.modelForces.dT_ms
+        self.fsp_fs   = self.lambda_f * self.modelForces.fsp_ms
 
-        return dT_f, f_f, nT
+    def scaleForces(self):
+        """Scale base forces from model to full scale
+        """
+        # Scaling factors
+        self.lambda_F = self.lambda_u ** 2 * self.lambda_g ** 2
+        self.lambda_M = self.lambda_u ** 2 * self.lambda_g ** 3
 
-class baseResponse(response):
-    def __init__(self):
-        super.__init__()
+        # Scale floor forces
+        self.modelForces.F_p_fs_D= self.modelForces.F_p_ms_D * self.lambda_F
+        self.modelForces.F_p_fs_L= self.modelForces.F_p_ms_L * self.lambda_F
+        
+        # Scale base forces
+        self.modelForces.BF_p_fs_D= self.modelForces.BF_p_ms_D * self.lambda_F
+        self.modelForces.BF_p_fs_L= self.modelForces.BF_p_ms_L * self.lambda_F
+        self.modelForces.BM_p_fs_D= self.modelForces.BM_p_ms_D * self.lambda_M
+        self.modelForces.BM_p_fs_L= self.modelForces.BM_p_ms_L * self.lambda_M
+
+# class baseResponse(response):
+#     def __init__(self):
+#         super.__init__()
 
 
 # ------------------------------------------------------------------------------

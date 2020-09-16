@@ -19,6 +19,9 @@ import numpy as np
 
 import calcModelForces 
 import calcWindStats
+import calcResponse
+
+from helpers.pyExtras import getKeyList
 # import calcForcesFromWindtunnel as FFWT
 
 # ------------------------------------------------------------------------------
@@ -47,6 +50,15 @@ def main():
     windStats = calcWindStats.windStats(uH_f)
 
     windStats.calcWindStats()
+
+    for key, value in getKeyList(windStats.uH_fs):
+        print(key)
+
+    baseResponse = calcResponse.response(modelForces, uH_f, H_f)
+
+    baseResponse.scaleTime()
+
+    baseResponse.scaleForces()
 
     # # Calculate Forces from wind tunnel results
     # Fpm_D, Fpm_L, Mpm_D, Mpm_L = FFWT.calcModelBaseForces(filename)
