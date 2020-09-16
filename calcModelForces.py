@@ -50,7 +50,7 @@ class modelForces(object):
         mat         = h5s.loadmat(self.fname)
         self.Cp     = mat['Wind_pressure_coefficients']
         self.Loc    = mat['Location_of_measured_points']
-        self.uH     = float(mat['Uh_AverageWindSpeed'][0])
+        self.uH_ms  = float(mat['Uh_AverageWindSpeed'][0])
         self.f_ms   = float(mat['Sample_frequency'][0])
 
         # Coordinates [in m], number and face of measurement points
@@ -70,7 +70,7 @@ class modelForces(object):
         self.A_i    = 0.02 * 0.02
 
         # Calculate forces [in kN]
-        self.F      = self.A_i * self.Cp * 0.5 * self.rho_air_ms  * self.uH  ** 2 * 10 ** -3
+        self.F_p_ms = self.A_i * self.Cp * 0.5 * self.rho_air_ms  * self.uH_ms  ** 2 * 10 ** -3
         
     def calcModelBaseForces(self):
         """Calculating base forces from surface pressure coeffs in model scale
@@ -80,7 +80,7 @@ class modelForces(object):
         self.BM_p_ms_D, self.BM_p_ms_L= np.zeros(self.nT), np.zeros(self.nT)
         
         # shape(F) = (nT, i) -> Loop over columns of array
-        for i, F_i in enumerate(self.F.T, 0):
+        for i, F_i in enumerate(self.F_p_ms.T, 0):
             # Face 1 -> +DragF, +DragM
             if self.face[i] == 1:
                 self.BF_p_ms_D = self.BF_p_ms_D + F_i
@@ -105,7 +105,7 @@ class modelForces(object):
         self.F_p_ms_D, self.F_p_ms_L= np.zeros((self.nz, self.nT)), np.zeros((self.nz, self.nT))
 
         # shape(F) = (nT, i) -> Loop over columns of array
-        for i, F_i in enumerate(self.F.T, 0):
+        for i, F_i in enumerate(self.F_p_ms.T, 0):
             # get index where to sort to
             j = self.z_lev.index(self.z[i])
 
