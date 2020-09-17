@@ -30,7 +30,7 @@ import pandas as pd
 # F...  force
 # H...  (at) height of building
 # sp..  sample
-# f...  frequency
+# fq...  frequency
 
 # ------------------------------------------------------------------------------
 # Classes
@@ -60,9 +60,9 @@ class modelForces(object):
         self.uH_ms  = float(mat['Uh_AverageWindSpeed'][0])
 
         # Time scales
-        self.fsp_ms = float(mat['Sample_frequency'][0])
-        self.T_ms   = float(mat['Sample_period'][0])
-        self.nT     = np.shape(self.Cp)[0]
+        self.fq_sp_ms   = float(mat['Sample_frequency'][0])
+        self.T_ms       = float(mat['Sample_period'][0])
+        self.nT         = np.shape(self.Cp)[0]
 
         # Geometrie [in m]
         self.H_ms   = float(mat['Building_height'][0])
