@@ -34,10 +34,9 @@ def main():
     fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing-1//T115_4_000_1.mat"
 
     # Full scale building properties
-    uH_f    = 41.13
-    H_f     = 160.0 
+    uH_f    = 46.10
+    H_f     = 128
     f_e     = 46 / H_f
-    omega_e = 2 * np.pi * f_e
     D       = 0.02
 
     # Initialize class modelForce
@@ -60,13 +59,13 @@ def main():
 
     # Calculate the base response forces for different wind speeds
     for RPeriod in getKeyList(windStats.uH_fs):
-        BaseResponseForces = calcResponse.BaseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
+        baseResponseForces = calcResponse.baseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
 
-        BaseResponseForces.scaleTime()
+        baseResponseForces.scaleTime()
 
-        BaseResponseForces.scaleForces()
+        baseResponseForces.scaleForces()
 
-        BaseResponseForces.calcLoadStats()
+        baseResponseForces.calcResponse(RPeriod + ".txt", f_e, f_e, D)
 
     # # Calculate Forces from wind tunnel results
     # Fpm_D, Fpm_L, Mpm_D, Mpm_L = FFWT.calcModelBaseForces(filename)
@@ -93,7 +92,7 @@ def main():
     #     AMT.plotSpectra(f, S_r, yLabel, title)
 
     # # wait for enter, otherwise we'll just close on exit
-    input()
+    # input()
 
 if __name__ == '__main__':
     main()
