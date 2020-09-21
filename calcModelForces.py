@@ -74,7 +74,7 @@ class modelForces(object):
         self.face   = self.Loc[3]
 
         # Get levels
-        self.z_lev  = list(set(self.z))
+        self.z_lev  = np.array(list(set(self.z)))
         self.nz     = len(self.z_lev)
         
         # Measurement area [in m]
@@ -118,8 +118,7 @@ class modelForces(object):
         # shape(F) = (nT, i) -> Loop over columns of array
         for i, F_i in enumerate(self.F_p_ms.T, 0):
             # get index where to sort to
-            j = self.z_lev.index(self.z[i])
-
+            j = np.where(self.z_lev == self.z[i])
             # Face 1 -> +DragF, +DragM
             if self.face[i] == 1:
                 self.F_p_ms_D[j,:] = self.F_p_ms_D[j,:] + F_i
