@@ -38,6 +38,8 @@ def main():
     H_f     = 128
     f_e     = 46 / H_f
     D       = 0.02
+    I       = 477.924
+    E       = 28900.000
 
     # Initialize class modelForce
     modelForces = calcModelForces.modelForces(fname)
@@ -58,14 +60,23 @@ def main():
     windStats.calcWindStats()
 
     # Calculate the base response forces for different wind speeds
+    # for RPeriod in getKeyList(windStats.uH_fs):
+    #     baseResponseForces = calcResponse.baseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
+
+    #     baseResponseForces.scaleTime()
+
+    #     baseResponseForces.scaleForces()
+
+    #     baseResponseForces.calcResponse(RPeriod + ".txt", f_e, f_e, D)
+
     for RPeriod in getKeyList(windStats.uH_fs):
-        baseResponseForces = calcResponse.baseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
+        TipResponseDeflections = calcResponse.TipResponseDeflections(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
 
-        baseResponseForces.scaleTime()
+        TipResponseDeflections.scaleTime()
 
-        baseResponseForces.scaleForces()
+        TipResponseDeflections.scaleForces()
 
-        baseResponseForces.calcResponse(RPeriod + ".txt", f_e, f_e, D)
+        TipResponseDeflections.calcResponse(RPeriod + ".txt", E, E, I, I)
 
     # # Calculate Forces from wind tunnel results
     # Fpm_D, Fpm_L, Mpm_D, Mpm_L = FFWT.calcModelBaseForces(filename)

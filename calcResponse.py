@@ -10,6 +10,15 @@
 # ------------------------------------------------------------------------------  
 import numpy as np
 from scipy import integrate
+
+# For Static solver (feastruct)
+from feastruct.pre.material import Material
+from feastruct.pre.section import Section
+import feastruct.fea.cases as cases
+from feastruct.fea.frame_analysis import FrameAnalysis2D
+from feastruct.solvers.linstatic import LinearStatic
+from feastruct.solvers.feasolve import SolverSettings
+
 # ------------------------------------------------------------------------------
 # Imported functions
 # ------------------------------------------------------------------------------
@@ -233,6 +242,108 @@ class baseResponseForces(response):
 class TipResponseDeflections(response):
     def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
         super().__init__(modelForces, RPeriod, uH_fs, H_fs)
+    
+    def calcResponse(self, fname, E_D, I_D, E_L, I_L):
+        # Investigated wind speed
+        writeToTxt(fname, "------------------------------")
+        writeToTxt(fname, "u_H_mean:      " + '{:02.3f}'.format(self.uH_fs))
+        writeToTxt(fname, "Return Period: " + self.RPeriod)
+        writeToTxt(fname, "------------------------------")     
+
+        # Base moment, drag direction
+        writeToTxt(fname, "Deflections in drag direction [m]")
+        TipResponseDeflections.calcMeanDeflection(self, fname, self.modelForces.F_p_fs_D, self.H_fs, E_D, I_D,\
+                self.modelForces.nz, self.modelForces.z_lev * self.lambda_g)
+
+        writeToTxt(fname, "------------------------------")
+
+        # Base moment, lift direction
+        writeToTxt(fname, "Deflections in lift direction [m]")
+        TipResponseDeflections.calcMeanDeflection(self, fname, self.modelForces.F_p_fs_L, self.H_fs, E_L, I_L,\
+                self.modelForces.nz, self.modelForces.z_lev * self.lambda_g)
+
+        writeToTxt(fname, "------------------------------")
+
+    def calcMeanDeflection(self, fname, F_p_j, H_fs, E, I, nz, z_lev_fs):
+        # Setting up static calculation
+        # ------------
+        # preprocessor
+        # ---------
+
+        # constants & lists
+        L = H_fs                        # length of the beam [m]
+        n = nz                          # no of nodes [-]
+        z = np.append(L, z_lev_fs)      # coordinates [m], append top of building
+        z = np.append(z, 0)             # coordinates [m], append support node
+
+        # everything starts with the analysis object
+        analysis = FrameAnalysis2D()
+
+        # materials and sections are objects
+        mat_dummy = Material("Dummy", E, 0.3, 0, colour='w')
+        section = Section(area=1, ixx=I)
+
+        # nodes are objects
+        nodes = []
+        for i in range(0,n+2): #! n+2 (support, tip)
+            node = analysis.create_node(coords=[0, z[i]])
+            nodes.append(node)
+
+        # and so are beams!
+        beams = []
+        for i in range(0,n+1): #! n+1 (support, tip)
+            beam = analysis.create_element(
+                el_type='EB2-2D', nodes=[nodes[i], nodes[i+1]], material=mat_dummy, section=section)
+            beams.append(beam)
+
+        # boundary conditions are objects
+        freedom_case = cases.FreedomCase()
+        freedom_case.add_nodal_support(node=nodes[-1], val=0, dof=0)
+        freedom_case.add_nodal_support(node=nodes[-1], val=0, dof=1)
+        freedom_case.add_nodal_support(node=nodes[-1], val=0, dof=5)
+
+        # so are loads!
+        load_case = cases.LoadCase()
+
+        for i in range(n):
+            F_p = np.mean(F_p_j[i]) / 1000       #[in MN]
+            load_case.add_nodal_load(node=nodes[i+1], val=F_p , dof=0) # i+1 (support, tip)
+
+        # an analysis case relates a support case to a load case
+        analysis_case = cases.AnalysisCase(freedom_case=freedom_case, load_case=load_case)
+
+        # ------
+        # solver
+        # ------
+
+        # you can easily change the solver settings
+        settings = SolverSettings()
+        settings.linear_static.time_info = False
+
+        # the linear static solver is an object and acts on the analysis object
+        LinearStatic(analysis=analysis, analysis_cases=[analysis_case], solver_settings=settings).solve()
+
+        # ----
+        # post
+        # ----
+        # there are plenty of post processing options!
+        # analysis.post.plot_geom(analysis_case=analysis_case)
+        # analysis.post.plot_geom(analysis_case=analysis_case, deformed=True, def_scale=1e2)
+        # analysis.post.plot_frame_forces(analysis_case=analysis_case, shear=True)
+        # analysis.post.plot_frame_forces(analysis_case=analysis_case, moment=True)
+        # analysis.post.plot_reactions(analysis_case=analysis_case)
+        
+        # Support reactions, to check bending moment for validation
+        for support in analysis_case.freedom_case.items:
+            if support.dof in [5]:
+                reaction = support.get_reaction(analysis_case=analysis_case)
+
+        # read out deformation at top 
+        u_p_mean = nodes[0].get_displacements(analysis_case)[0]
+
+        writeToTxt(fname, "u_p_mean:      " + '{:02.3f}'.format(u_p_mean))
+
+        return u_p_mean
 
 class TipResponseAccelerations(response):
     def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
