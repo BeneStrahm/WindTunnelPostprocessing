@@ -73,8 +73,10 @@ class modelForces(object):
         self.n      = self.Loc[2]
         self.face   = self.Loc[3]
 
-        # Get levels
-        self.z_lev  = np.array(list(set(self.z)))
+        # Get levels & sort them
+        self.z_lev  = np.unique(self.z)
+        self.z_lev  = self.z_lev[::-1]
+
         self.nz     = len(self.z_lev)
         
         # Measurement area [in m]

@@ -34,12 +34,14 @@ def main():
     fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing-1//T115_4_000_1.mat"
 
     # Full scale building properties
-    uH_f    = 46.10
-    H_f     = 128
-    f_e     = 46 / H_f
-    D       = 0.02
-    I       = 477.924
-    E       = 28900.000
+    uH_f    = 46.10             # m/s
+    H_f     = 128               # m
+    f_e     = 46 / H_f          # Hz
+    f_e     = 0.22706714
+    D       = 0.02              # %
+    I       = 477.924           # m4
+    E       = 28900 * 10 ** 3   # kN/m2
+    mue     = 30473 / H_f       # t/m
 
     # Initialize class modelForce
     modelForces = calcModelForces.modelForces(fname)
@@ -60,23 +62,27 @@ def main():
     windStats.calcWindStats()
 
     # Calculate the base response forces for different wind speeds
-    # for RPeriod in getKeyList(windStats.uH_fs):
-    #     baseResponseForces = calcResponse.baseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
+    for RPeriod in getKeyList(windStats.uH_fs):
+        if "uH_fs_050" in RPeriod:
+        # if True:
+            baseResponseForces = calcResponse.baseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
 
-    #     baseResponseForces.scaleTime()
+            baseResponseForces.scaleTime()
 
-    #     baseResponseForces.scaleForces()
+            baseResponseForces.scaleForces()
 
-    #     baseResponseForces.calcResponse(RPeriod + ".txt", f_e, f_e, D)
+            baseResponseForces.calcResponse(RPeriod + ".txt", f_e, f_e, D)
 
     for RPeriod in getKeyList(windStats.uH_fs):
-        TipResponseDeflections = calcResponse.TipResponseDeflections(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
+        if "uH_fs_050" in RPeriod:
+        # if True:
+            TipResponseDeflections = calcResponse.TipResponseDeflections(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
 
-        TipResponseDeflections.scaleTime()
+            TipResponseDeflections.scaleTime()
 
-        TipResponseDeflections.scaleForces()
+            TipResponseDeflections.scaleForces()
 
-        TipResponseDeflections.calcResponse(RPeriod + ".txt", E, E, I, I)
+            TipResponseDeflections.calcResponse(RPeriod + ".txt", E, I, E, I, mue)
 
     # # Calculate Forces from wind tunnel results
     # Fpm_D, Fpm_L, Mpm_D, Mpm_L = FFWT.calcModelBaseForces(filename)

@@ -17,6 +17,7 @@ from feastruct.pre.section import Section
 import feastruct.fea.cases as cases
 from feastruct.fea.frame_analysis import FrameAnalysis2D
 from feastruct.solvers.linstatic import LinearStatic
+from feastruct.solvers.naturalfrequency import NaturalFrequency
 from feastruct.solvers.feasolve import SolverSettings
 
 # ------------------------------------------------------------------------------
@@ -86,7 +87,9 @@ class response(object):
         self.modelForces.F_p_fs_L= self.modelForces.F_p_ms_L * self.lambda_F
         
         # Scale base forces
-        self.modelForces.BF_p_fs_D= self.modelForces.BF_p_ms_D * self.lambda_F
+        self.modelForces.BF_p_fs_D= self.modelForces.BF_p_ms_D * self.lambda_F 
+
+        print(np.mean(self.modelForces.BF_p_fs_D *1000/(0.5 *  1.25 * self.uH_fs**2 * 128 *128)))
         self.modelForces.BF_p_fs_L= self.modelForces.BF_p_ms_L * self.lambda_F
         self.modelForces.BM_p_fs_D= self.modelForces.BM_p_ms_D * self.lambda_M
         self.modelForces.BM_p_fs_L= self.modelForces.BM_p_ms_L * self.lambda_M
@@ -243,7 +246,7 @@ class TipResponseDeflections(response):
     def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
         super().__init__(modelForces, RPeriod, uH_fs, H_fs)
     
-    def calcResponse(self, fname, E_D, I_D, E_L, I_L):
+    def calcResponse(self, fname, E_D, I_D, E_L, I_L, mue):
         # Investigated wind speed
         writeToTxt(fname, "------------------------------")
         writeToTxt(fname, "u_H_mean:      " + '{:02.3f}'.format(self.uH_fs))
@@ -254,12 +257,16 @@ class TipResponseDeflections(response):
         writeToTxt(fname, "Deflections in drag direction [m]")
         TipResponseDeflections.calcMeanDeflection(self, fname, self.modelForces.F_p_fs_D, self.H_fs, E_D, I_D,\
                 self.modelForces.nz, self.modelForces.z_lev * self.lambda_g)
+        TipResponseDeflections.calcPeakDeflection(self, fname, 146332.508, self.H_fs, E_D, I_D, mue, \
+                self.modelForces.nz, self.modelForces.z_lev * self.lambda_g)
 
         writeToTxt(fname, "------------------------------")
 
         # Base moment, lift direction
         writeToTxt(fname, "Deflections in lift direction [m]")
         TipResponseDeflections.calcMeanDeflection(self, fname, self.modelForces.F_p_fs_L, self.H_fs, E_L, I_L,\
+                self.modelForces.nz, self.modelForces.z_lev * self.lambda_g)
+        TipResponseDeflections.calcPeakDeflection(self, fname, 370125.002, self.H_fs, E_D, I_D, mue, \
                 self.modelForces.nz, self.modelForces.z_lev * self.lambda_g)
 
         writeToTxt(fname, "------------------------------")
@@ -280,7 +287,7 @@ class TipResponseDeflections(response):
         analysis = FrameAnalysis2D()
 
         # materials and sections are objects
-        mat_dummy = Material("Dummy", E, 0.3, 0, colour='w')
+        mat_dummy = Material("Dummy", E, 0.3, 1, colour='w')
         section = Section(area=1, ixx=I)
 
         # nodes are objects
@@ -306,7 +313,7 @@ class TipResponseDeflections(response):
         load_case = cases.LoadCase()
 
         for i in range(n):
-            F_p = np.mean(F_p_j[i]) / 1000       #[in MN]
+            F_p = np.mean(F_p_j[i])        #[in KN]
             load_case.add_nodal_load(node=nodes[i+1], val=F_p , dof=0) # i+1 (support, tip)
 
         # an analysis case relates a support case to a load case
@@ -321,7 +328,8 @@ class TipResponseDeflections(response):
         settings.linear_static.time_info = False
 
         # the linear static solver is an object and acts on the analysis object
-        LinearStatic(analysis=analysis, analysis_cases=[analysis_case], solver_settings=settings).solve()
+        solver = LinearStatic(analysis=analysis, analysis_cases=[analysis_case], solver_settings=settings)
+        solver.solve()
 
         # ----
         # post
@@ -339,11 +347,116 @@ class TipResponseDeflections(response):
                 reaction = support.get_reaction(analysis_case=analysis_case)
 
         # read out deformation at top 
-        u_p_mean = nodes[0].get_displacements(analysis_case)[0]
+        self.delta_p_mean = nodes[0].get_displacements(analysis_case)[0]
 
-        writeToTxt(fname, "u_p_mean:      " + '{:02.3f}'.format(u_p_mean))
+        writeToTxt(fname, "delta_p_mean:    " + '{:02.3f}'.format(self.delta_p_mean))
 
-        return u_p_mean
+    def calcPeakDeflection(self, fname, F_r_std, H_fs, E, I, mue, nz, z_lev_fs):
+        # Setting up dynamic calculation
+        # ------------
+        # preprocessor
+        # ---------
+
+        # constants & lists
+        L = H_fs                        # length of the beam [m]
+        n = nz                          # no of nodes [-]
+        z = np.append(L, z_lev_fs)      # coordinates [m], append top of building
+        z = np.append(z, 0)             # coordinates [m], append support node
+        num_modes = 1
+
+        # everything starts with the analysis object
+        analysis = FrameAnalysis2D()
+
+        # materials and sections are objects
+        mat_dummy = Material("Dummy", E, 0.3, mue, colour='w')
+        section = Section(area=1, ixx=I)
+
+        # nodes are objects
+        nodes = []
+        for i in range(0,n+2): #! n+2 (support, tip)
+            node = analysis.create_node(coords=[0, z[i]])
+            nodes.append(node)
+
+        # and so are beams!
+        beams = []
+        for i in range(0,n+1): #! n+1 (support, tip)
+            beam = analysis.create_element(
+                el_type='EB2-2D', nodes=[nodes[i], nodes[i+1]], material=mat_dummy, section=section)
+            beams.append(beam)
+
+        # boundary conditions are objects
+        freedom_case = cases.FreedomCase()
+        freedom_case.add_nodal_support(node=nodes[-1], val=0, dof=0)
+        freedom_case.add_nodal_support(node=nodes[-1], val=0, dof=1)
+        freedom_case.add_nodal_support(node=nodes[-1], val=0, dof=5)
+
+        # add analysis case
+        analysis_case = cases.AnalysisCase(freedom_case=freedom_case, load_case=cases.LoadCase())
+
+        # ----------------
+        # frequency solver
+        # ----------------
+
+        settings = SolverSettings()
+        settings.natural_frequency.time_info = True
+        settings.natural_frequency.num_modes = num_modes
+
+        solver = NaturalFrequency(
+            analysis=analysis, analysis_cases=[analysis_case], solver_settings=settings)
+
+        # Manual solver, see feastruct/solvers/naturalfrequency.py, in order
+        # to extract mass/stiffness-matrix and eigenvectors      
+        # assign the global degree of freedom numbers
+        solver.assign_dofs()
+
+        # Get the global stiffness / mass matrix
+        (K, Kg) = solver.assemble_stiff_matrix()
+        M = solver.assemble_mass_matrix()
+
+        # apply the boundary conditions
+        K_mod = solver.remove_constrained_dofs(K=K, analysis_case=analysis_case)
+        M_mod = solver.remove_constrained_dofs(K=M, analysis_case=analysis_case)
+
+        # Solve for the eigenvalues
+        (w, v) = solver.solve_eigenvalue(A=K_mod, M=M_mod, eigen_settings=settings.natural_frequency)
+
+        # compute natural frequencies in Hz
+        f = np.sqrt(w) / 2 / np.pi
+
+        # Normalize Eigenvector
+        v = v / v[0] * L
+
+        # # Get only dof ux
+        # u = np.zeros(n+1)
+        # for i in range(0, n+1):
+        #     j = i * 3
+        #     u[i] = v[j]
+
+        # Get generalized quantities
+        K_mod = K_mod.toarray()
+        K_gen = np.dot(np.dot(v.T, K_mod), v)
+
+        M_mod = M_mod.toarray()
+        M_gen = np.dot(np.dot(v.T, M_mod), v)  
+
+        # To check, compute 
+        # f_k = np.sqrt(K_gen/M_gen) / 2 / np.pi  
+        # print(f/f_k)
+        # K_gen = 3 * E * I /(L^3) / L
+        K_gen = K_gen[0][0] 
+
+        # Calculate peak displacement
+        delta_r_std = v[0][0] / K_gen * F_r_std 
+        g_peak = response.calcPeakFactor(self, 3600, f[0])      # Peak Factor   
+        
+
+        delta_r_max = g_peak * delta_r_std        
+
+        writeToTxt(fname, "delta_r_std:     " + '{:02.3f}'.format(delta_r_std))
+        writeToTxt(fname, "g_peak:          " + '{:02.3f}'.format(g_peak))
+        writeToTxt(fname, "delta_r_max:     " + '{:02.3f}'.format(delta_r_max))
+
+
 
 class TipResponseAccelerations(response):
     def __init__(self, modelForces, RPeriod, uH_fs, H_fs):
