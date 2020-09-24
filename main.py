@@ -53,14 +53,8 @@ def main():
     # Calculate wind stats at different return periods
     windStats = wind.windStats(uH_f)
 
-    # Collect 
-    speeds = []
-    responses = []
-
-
     for RPeriod in getKeyList(windStats.uH):
         # if "uH_050" in RPeriod:
-            speeds.append(windStats.uH[RPeriod])
             # Initialize building model properties
             buildProp = modelProp.buildProp(H_f, E, I, mue, D, windStats.uH[RPeriod])
             

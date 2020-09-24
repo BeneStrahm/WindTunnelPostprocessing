@@ -36,6 +36,8 @@ import plotters.plot2D as plt
 # ------------------------------------------------------------------------------  
 
 class amt():
+    """Aerodynamic model theorie
+    """
     def __init__(self):
         pass
 
