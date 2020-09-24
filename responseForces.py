@@ -34,21 +34,28 @@ from scipy import integrate
 # Classes
 # ------------------------------------------------------------------------------  
 
-class amt:
+class aeroModelTheory:
     def __init__(self, F_p, dT, fq_e, D, nue, T_exp):
         """Inits the class.
-        :param coords: Cartesian coordinates of the node *([x], [x, y] or [x, y, z])*
-        :type coords: list[float]
+        :param F_p: time series of aerodynamic forces
+        :type F_p: np.array[float]
+        :param dT: time stepping of the time series [s]
+        :type dT: float
+        :param fq_e: eigenfrequency of the building [Hz]
+        :type fq_e: float
+        :param D: damping ratio [%]
+        :type D: float
+        :param nue: effective cycling rate, freq. w/ most energy
+        :type nue: float
+        :param T_exp: exposure period, same basis as ref. wind speed
+        :type T_exp: float
         """
          # Transform only the fluctuations "F_p_prime" to frequency domain
         self.F_p_mean  = np.mean(F_p)  
         self.F_p_prime = F_p - self.F_p_mean
-        
-        # Compute the mean loading
-        self.F_p_mean = np.mean(self.F_p_prime)
 
         # Transform time series of forces into the spectral domain
-        self.S_p, self.fq_p = self.transToSpectralDomain(F_p, dT)
+        self.S_p, self.fq_p = self.transToSpectralDomain(self.F_p_prime, dT)
 
         # Calculate the response spectrum
         self.S_r = self.calcSpectralResponse(self.fq_p, self.S_p, fq_e, D)
@@ -106,7 +113,7 @@ class amt:
 
         for i in range(0, N):
             eta_i   = fq_p[i]/fq_e
-            H_i     = response.mechanicalAdmittance(self, eta_i, D)
+            H_i     = self.mechanicalAdmittance(eta_i, D)
             S_r[i]  = abs(H_i)**2 * S_p[i]
 
         return S_r
