@@ -210,5 +210,5 @@ class buildProp():
 # ------------------------------------------------------------------------------   
 
 def test():
-    a = modelProp("T115_4_000_1.mat")
+    a = wtModelProp("T115_4_000_1.mat")
     a.loadTPUModelProp()
