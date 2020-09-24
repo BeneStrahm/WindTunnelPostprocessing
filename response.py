@@ -351,8 +351,6 @@ class responseAccelerations(amt):
 # Functions
 # ------------------------------------------------------------------------------   
 
-def validate():
+def validateAmt():
     aeroModelTheorie = amt()
     aeroModelTheorie.amtValidation()
-
-validate()
