@@ -39,8 +39,6 @@ def main():
     # Full scale building properties
     uH_f    = 46.10             # m/s
     H_f     = 128               # m
-    f_e     = 46 / H_f          # Hz
-    f_e     = 0.22706714
     D       = 0.02              # %
     I       = 477.924           # m4
     E       = 28900 * 10 ** 3   # kN/m2
