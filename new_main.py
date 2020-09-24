@@ -66,24 +66,26 @@ def main():
     buildAeroForces = aeroForces.buildAeroForces(scalingFactors, wtModelAeroForces)
 
     # Create analysis model
-    feModel = fea.feModel(buildProp, direction="D")
+    feModel = fea.feModel(buildProp, direction="L")
 
     # Compute eigenfrequencies
     feModel.getEigenfrequency()
 
     # Calc response forces
-    responseForces = response.responseForces(buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+    responseForces = response.responseForces(buildAeroForces.BM_p_L, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
 
     # Calc generalized quantities
     feModel.calcGeneralizedQuantitites()
 
     # Calc response deflections
-    responseDeflections = response.responseDeflection(feModel, responseForces, buildAeroForces.F_p_D)
+    responseDeflections = response.responseDeflection(feModel, responseForces, buildAeroForces.F_p_L)
 
     # Calc response accelerations
-    responseAccelerations = response.responseAccelerations(feModel, buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+    responseAccelerations = response.responseAccelerations(feModel, buildAeroForces.BM_p_L, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
 
-    print(responseAccelerations.a_r_rms)
+    print(responseAccelerations.a_r_max)
+
+    print(responseDeflections.delta_tip_r_max * (feModel.fq_e * np.pi * 2) ** 2)
 
 
 

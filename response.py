@@ -77,15 +77,14 @@ class amt():
 
         # Apply Dynamic amplification factor
         S_r = np.zeros(N)
-
         for i in range(0, N):
             eta_i   = fq_p[i]/fq_e
             if r == 'bm':
                 H_i     = self.mechanicalAdmittance(eta_i, D)
                 S_r[i]  = abs(H_i)**2 * S_p[i]
             elif r == 'a':
-                Ha_i     = self.accelerationAdmittance(eta_i, D, fq_p[i])
-                S_r[i]  = abs(Ha_i)**2 * S_p[i]
+                Ha_i    = self.accelerationAdmittance(eta_i, fq_p[i], D)
+                S_r[i]  = abs(Ha_i)** 2 * S_p[i]
             else:
                 raise ('Invalid argument for desired response quantitiy')
         return S_r
@@ -132,8 +131,106 @@ class amt():
         g_peak = np.sqrt(2 * np.log(nue * T_exp)) + 0.5772 / np.sqrt((2 * np.log(nue * T_exp)))
         return g_peak
 
-    def amtValidation():
-        pass
+    def amtValidation(self):
+        # --- Conventions --#
+        # S_p:    : Spectrum of the loading  (p - loading)
+        # S_r     : Spectrum of the response (r - response)
+        # f       : Frequency of load / response spectra
+        # H_f     : Mechanical Admittance of a certain frequency
+        # D       : Damping ratio
+        # omega_e : Circular eigenfrequency of the system
+        
+        # --- Input data ---#      
+        # # Time settings
+        dT = 1 / 2000
+        eT = 20 
+        nT = int(eT // dT + 1)
+        T  = np.linspace(0, eT, nT)
+
+        # Structural characteristis
+        k       = (2 * np.pi)  ** 2                 #[kN/m]
+        m       = 1                                 #[t]  
+        omega_e = np.sqrt(k/m)
+        f_e     = 1 / (2 * np.pi) * omega_e
+
+        D       = 0.0125
+
+        # Dynamic loading component
+        F_G         = 1                                 #[kN] - self weight, can be neglected for dynamic amplification, see TUM: TM 3 - p.43
+        F_0         = 1                                 #[kN]
+        omega_p     = np.pi
+        F_p         = F_G + F_0 * np.sin(omega_p * T)
+        F_p_mean    = np.mean(F_p)   
+        F_p_prime   = F_p - F_p_mean
+
+        #######################
+        # Analytical solution #
+        #######################
+
+        # Static deformation
+        u_g    = F_G / k                                # [m]
+        u_stat = F_0 / k                                # [m]
+
+        # Frequency relation
+        eta     = omega_p / omega_e   
+
+        # Dynamic amplification factor
+        V       = 1 / np.sqrt((1-eta**2)**2 + (2*D*eta)**2) 
+
+        # Max Deformation
+        u_r_max_ex = u_stat * V                            # [m]
+        u_tot   = u_g + u_r_max_ex                         # [m]
+
+        # Max Acceleration
+        a_r_max_ex   = u_r_max_ex * omega_e ** 2                # [m/s]
+
+        # Max response load
+        F_r_max_ex = F_p_mean + V * np.max(F_p_prime)      # [kN]
+
+        ######################
+        # Aero Model Theorie #
+        ######################
+        # Transform only the fluctuations "F_p_prime" to frequency domain
+        F_p_mean  = np.mean(F_p)  
+        F_p_prime = F_p - F_p_mean
+
+        # Transform time series of forces into the spectral domain
+        S_p, fq_p = self.transToSpectralDomain(F_p_prime, dT)
+
+        # Peak loading
+        # Calculate the response spectrum
+        S_r = self.calcSpectralResponse(fq_p, S_p, f_e, D, r='bm')
+
+        # Integrate the response spectrum to get rms values
+        F_r_rms = self.numericalIntSpectrum(dT, S_r)
+
+        # Compute the peak factor, For Sinusoidal loading
+        g_peak = np.sqrt(2)
+
+        # Compute the peak loading
+        F_r_max_amt = F_p_mean + g_peak * F_r_rms 
+
+        # Peak accelerations
+        # Calculate the response spectrum
+        S_r = self.calcSpectralResponse(fq_p, S_p, f_e, D, r='a')
+
+        # Integrate the response spectrum to get rms values
+        a_r_rms = self.numericalIntSpectrum(dT, S_r) / k
+        
+        # Compute the peak factor
+        g_peak = np.sqrt(2)
+
+        # Compute the peak acceleration
+        a_r_max_amt = g_peak * a_r_rms 
+
+        print("Exact solution:")
+        print("F_r_max: " + str(F_r_max_ex))
+        print("u_r_max: " + str(u_r_max_ex))
+        print("a_r_max: " + str(a_r_max_ex))
+
+        print("Aerodynamic model theorie:")
+        print("F_r_max: " + str(F_r_max_amt))
+        print("a_r_max: " + str(a_r_max_amt))
 
 
 class responseForces(amt):
@@ -253,3 +350,9 @@ class responseAccelerations(amt):
 # ------------------------------------------------------------------------------
 # Functions
 # ------------------------------------------------------------------------------   
+
+def validate():
+    aeroModelTheorie = amt()
+    aeroModelTheorie.amtValidation()
+
+validate()
