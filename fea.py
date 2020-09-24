@@ -127,10 +127,10 @@ class feModel:
         self.M_mod = solver.remove_constrained_dofs(K=M, analysis_case=analysis_case)
 
         # Solve for the eigenvalues
-        (self.f, self.v) = solver.solve_eigenvalue(A=self.K_mod, M=self.M_mod, eigen_settings=settings.natural_frequency)
+        (self.fq_e, self.v) = solver.solve_eigenvalue(A=self.K_mod, M=self.M_mod, eigen_settings=settings.natural_frequency)
 
         # compute natural frequencies in Hz
-        self.f = np.sqrt(self.f[0]) / 2 / np.pi
+        self.fq_e = np.sqrt(self.fq_e[0]) / 2 / np.pi
 
         # Normalize Eigenvector acc. to Boggs 1991, 4.3.1, p.109
         self.v = self.v / self.v[0] * self.L
@@ -150,7 +150,7 @@ class feModel:
         # K_gen = 3 * E * I /(L^3) / 
         
 
-    def calcStaticMeanWindloadDeflection(self, buildAeroForces):
+    def calcStaticWindloadDeflection(self, F_p_j):
         # ------------
         # preprocessor
         # ---------
@@ -159,12 +159,7 @@ class feModel:
         self.load_case = cases.LoadCase()
 
         for i in range(self.n):
-            if self.direction == "D":
-                F_p = np.mean(buildAeroForces.F_p_D[i])        #[in KN]
-            elif self.direction == "L":
-                F_p = np.mean(buildAeroForces.F_p_L[i])        #[in KN]
-            else:
-                raise Exception("Invalid direction specified") 
+            F_p = np.mean(F_p_j[i])        #[in KN]
             self.load_case.add_nodal_load(node=self.nodes[i+1], val=F_p , dof=0) # i+1 (support, tip)
 
         # an analysis case relates a support case to a load case
@@ -198,8 +193,9 @@ class feModel:
                 reaction = support.get_reaction(analysis_case=analysis_case)
 
         # read out deformation at top 
-        self.delta_p_mean = self.nodes[0].get_displacements(analysis_case)[0]
+        delta_tip = self.nodes[0].get_displacements(analysis_case)[0]
        
+        return delta_tip
     
 
 # ------------------------------------------------------------------------------
