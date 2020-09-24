@@ -13,7 +13,8 @@ from scipy import integrate
 # ------------------------------------------------------------------------------
 # Imported functions
 # ------------------------------------------------------------------------------
-
+from helpers.txtEditor import writeToTxt
+import plotters.plot2D as plt
 # ------------------------------------------------------------------------------
 # Abbreviations
 # ------------------------------------------------------------------------------
@@ -232,7 +233,6 @@ class amt():
         print("F_r_max: " + str(F_r_max_amt))
         print("a_r_max: " + str(a_r_max_amt))
 
-
 class responseForces(amt):
     def __init__(self, F_p, dT, fq_e, D, nue, T_exp):
         """Inits the calculation acc. to the aerodynamic model theory
@@ -251,8 +251,13 @@ class responseForces(amt):
         """
         super().__init__() 
 
+        # Calc statistics
+        self.F_p_mean = np.mean(F_p)
+        self.F_p_max  = np.max(F_p)
+        self.F_p_min  = np.min(F_p)
+        self.F_p_std  = np.std(F_p)
+
         # Transform only the fluctuations "F_p_prime" to frequency domain
-        self.F_p_mean  = np.mean(F_p)  
         self.F_p_prime = F_p - self.F_p_mean
 
         # Transform time series of forces into the spectral domain
@@ -262,19 +267,43 @@ class responseForces(amt):
         self.S_r = super().calcSpectralResponse(self.fq_p, self.S_p, fq_e, D, r='bm')
 
         # Integrate the response spectrum to get rms values
-        self.F_r_rms = super().numericalIntSpectrum(dT, self.S_r)
+        self.F_r_std = super().numericalIntSpectrum(dT, self.S_r)
 
         # Compute the peak factor
         self.g_peak = super().calcPeakFactor(nue, T_exp)
 
         # Compute the peak loading
-        self.F_r_max = self.F_p_mean + self.g_peak * self.F_r_rms 
-        self.F_r_min = self.F_p_mean - self.g_peak * self.F_r_rms 
+        self.F_r_max = self.F_p_mean + self.g_peak * self.F_r_std 
+        self.F_r_min = self.F_p_mean - self.g_peak * self.F_r_std 
 
         # Comparison with the loading
-        # --------------------  
-        self.F_p_max = np.max(F_p)
         self.DLF_max = self.F_r_max / self.F_p_max
+
+    def writeResultsToFile(self, fname, uH_fs, RPeriod):
+        # Investigated wind speed
+        writeToTxt(fname, "------------------------------")
+        writeToTxt(fname, "u_H_mean:      " + '{:02.3f}'.format(uH_fs))
+        writeToTxt(fname, "Return Period: " + RPeriod)
+        writeToTxt(fname, "------------------------------")     
+
+        # Load statistics
+        writeToTxt(fname, "Aero load statistics")
+        writeToTxt(fname, "F_p_mean:      " + '{:02.3f}'.format(self.F_p_mean))
+        writeToTxt(fname, "F_p_max:       " + '{:02.3f}'.format(self.F_p_max))
+        writeToTxt(fname, "F_p_std:       " + '{:02.3f}'.format(self.F_p_std))
+        writeToTxt(fname, "------------------------------")  
+
+        # Asses response with spectral analysis      
+        writeToTxt(fname, "Asses response with spectral analysis")
+        writeToTxt(fname, "F_r_std:         " + '{:02.3f}'.format(self.F_r_std))
+        writeToTxt(fname, "g_peak:          " + '{:02.3f}'.format(self.g_peak))
+        writeToTxt(fname, "F_r_max:         " + '{:02.3f}'.format(self.F_r_max))
+        writeToTxt(fname, "------------------------------")  
+
+        # Comparison with the loading
+        writeToTxt(fname, "Comparison with loading")
+        writeToTxt(fname, "DLF(F_max):      " + '{:02.3f}'.format(self.DLF_max))
+        writeToTxt(fname, "------------------------------")  
     
 class responseDeflection:
     """Class containing the full scale properties of the building
@@ -303,7 +332,7 @@ class responseDeflection:
         :type coords: list[float]
         """
         # Calculate rms displacement
-        self.delta_tip_r_std = feModel.v[0][0] / feModel.K_gen * responseForces.F_r_rms
+        self.delta_tip_r_std = feModel.v[0][0] / feModel.K_gen * responseForces.F_r_std
         
         # Compute the peak loading
         self.delta_tip_r_max = self.delta_tip_p_mean + responseForces.g_peak * self.delta_tip_r_std 

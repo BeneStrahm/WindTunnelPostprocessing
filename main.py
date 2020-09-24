@@ -17,12 +17,15 @@ import numpy as np
 # Imported functions
 # ------------------------------------------------------------------------------
 
-import calcModelForces 
-import calcWindStats
-import calcResponse
+import aeroForces
+import modelProp
+import scaling
+import fea
+import response
+import wind
 
+import plotters.plot2D as plt
 from helpers.pyExtras import getKeyList
-# import calcForcesFromWindtunnel as FFWT
 
 # ------------------------------------------------------------------------------
 # Functions
@@ -43,73 +46,60 @@ def main():
     E       = 28900 * 10 ** 3   # kN/m2
     mue     = 30473 / H_f       # t/m
 
-    # Initialize class modelForce
-    modelForces = calcModelForces.modelForces(fname)
+    # Load wind tunnel model properties, TPU Database files
+    wtModelProp = modelProp.wtModelProp(fname)
+    wtModelProp.loadTPUModelProp()
 
-    # Load wind tunnel data
-    modelForces.loadWindtunnelData()
+    # Calculate wind stats at different return periods
+    windStats = wind.windStats(uH_f)
 
-    # Sum up base forces
-    modelForces.calcModelBaseForces()
-
-    # Sum up forces at each level
-    modelForces.calcModelFloorForces()
-
-    # Initialize class windStats
-    windStats = calcWindStats.windStats(uH_f)
-
-    # Calculate wind speeds at different return periods
-    windStats.calcWindStats()
-
-    # Calculate the base response forces for different wind speeds
-    for RPeriod in getKeyList(windStats.uH_fs):
-        if "uH_fs_050" in RPeriod:
-        # if True:
-            baseResponseForces = calcResponse.baseResponseForces(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
-
-            baseResponseForces.scaleTime()
-
-            baseResponseForces.scaleForces()
-
-            baseResponseForces.calcResponse(RPeriod + ".txt", f_e, f_e, D)
-
-    for RPeriod in getKeyList(windStats.uH_fs):
-        if "uH_fs_050" in RPeriod:
-        # if True:
-            TipResponseDeflections = calcResponse.TipResponseDeflections(modelForces, RPeriod, windStats.uH_fs[RPeriod], H_f)
-
-            TipResponseDeflections.scaleTime()
-
-            TipResponseDeflections.scaleForces()
-
-            TipResponseDeflections.calcResponse(RPeriod + ".txt", E, I, E, I, mue)
-
-    # # Calculate Forces from wind tunnel results
-    # Fpm_D, Fpm_L, Mpm_D, Mpm_L = FFWT.calcModelBaseForces(filename)
-
-    # # Scale time / forces from wind tunnel results
-    # Fpf_D, Fpf_L, Mpf_D, Mpf_L = FFWT.scaleForces(filename, Fpm_D, Fpm_L, Mpm_D, Mpm_L, uH_f, H_f)
-    # dT_f, nT, f_f = FFWT.scaleTime(filename, uH_f, H_f)
-
-    # # Calculate full scale structural response force with the aerodynamic model theory
-    # # --- Calculation --# 
-    # S_p, S_r, f = AMT.SpectralAnalyis(Fpf_D, dT_f, omega_e, D)
-
-    # #---- Plotting ----#
-    # if False:
-    #     # Plotting the load spectrum
-    #     yLabel  = r'\$ S_p(f) \$'
-    #     title   = "Load spectrum"
-    #     AMT.plotSpectra(f, S_p, yLabel, title)
+    # Collect 
+    speeds = []
+    responses = []
 
 
-    #     # Plotting the response spectrum
-    #     yLabel  = r'\$ S_r(f) \$'
-    #     title   = "Response spectrum"
-    #     AMT.plotSpectra(f, S_r, yLabel, title)
+    for RPeriod in getKeyList(windStats.uH):
+        # if "uH_050" in RPeriod:
+            speeds.append(windStats.uH[RPeriod])
+            # Initialize building model properties
+            buildProp = modelProp.buildProp(H_f, E, I, mue, D, windStats.uH[RPeriod])
+            
+            # Load aerodynamic forces in model scale
+            wtModelAeroForces = aeroForces.wtModelAeroForces()
+            wtModelAeroForces.loadTPUModelForces(wtModelProp)
 
-    # # wait for enter, otherwise we'll just close on exit
-    # input()
+            # Calculate scaling factors
+            scalingFactors = scaling.scalingFactors(wtModelProp, buildProp)
+
+            # Scale wind tunnel model
+            buildProp.scaleBuildProp(wtModelProp, scalingFactors)
+
+            # Scale forces
+            buildAeroForces = aeroForces.buildAeroForces(scalingFactors, wtModelAeroForces)
+
+            # Create analysis model
+            feModel = fea.feModel(buildProp)
+
+            # Compute eigenfrequencies
+            feModel.getEigenfrequency()
+
+            # Calc generalized quantities
+            feModel.calcGeneralizedQuantitites()
+
+            # Calc response forces
+            responseForcesD = response.responseForces(buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+            responseForcesD.writeResultsToFile("results/Drag_forces.txt", windStats.uH[RPeriod], RPeriod)
+
+            responseForcesL = response.responseForces(buildAeroForces.BM_p_L, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+            responseForcesL.writeResultsToFile("results/Lift_forces.txt", windStats.uH[RPeriod], RPeriod)
+
+            # Calc response deflections
+            responseDeflectionsD = response.responseDeflection(feModel, responseForcesD, buildAeroForces.F_p_D)
+            responseDeflectionsL = response.responseDeflection(feModel, responseForcesL, buildAeroForces.F_p_L)
+
+            # Calc response accelerations
+            responseAccelerationsD = response.responseAccelerations(feModel, buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+            responseAccelerationsL = response.responseAccelerations(feModel, buildAeroForces.BM_p_L, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
 
 if __name__ == '__main__':
     main()

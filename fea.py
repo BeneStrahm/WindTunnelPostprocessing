@@ -46,14 +46,11 @@ class feModel:
     :cvar coords: Cartesian coordinates of the node
     :vartype coords: list[float, float, float]
     """
-    def __init__(self, buildProp, direction="D"):
+    def __init__(self, buildProp):
         """Inits the class, setting up calculation model
         :param buildProp: full scale properties of the building
         :type buildProp: :class:`~modelProp.buildProp`
-        :param direction: Direction of model [D,L]
-        :type direction: :string "D" / "L"
         """
-        self.direction = direction
         # Setting up calculation model
         # ------------
         # preprocessor
@@ -70,12 +67,7 @@ class feModel:
 
         # materials and sections are objects
         self.material = Material("Dummy", buildProp.E, 0.3, buildProp.mue, colour='w')
-        if self.direction == "D":
-            self.section = Section(area=1, ixx=buildProp.Idd)
-        elif self.direction == "L":
-            self.section = Section(area=1, ixx=buildProp.Ill)
-        else:
-            raise Exception("Invalid direction specified") 
+        self.section = Section(area=1, ixx=buildProp.I)
 
         # nodes are objects
         self.nodes = []
@@ -148,7 +140,6 @@ class feModel:
         # f_k = np.sqrt(K_gen/M_gen) / 2 / np.pi  d
         # print(f/f_k)
         # K_gen = 3 * E * I /(L^3) / 
-        
 
     def calcStaticWindloadDeflection(self, F_p_j):
         # ------------

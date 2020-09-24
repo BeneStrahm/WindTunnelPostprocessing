@@ -114,10 +114,8 @@ class buildProp():
     :vartype H: float
     :cvar E: E-Modulus [kN/m²]
     :vartype E: float
-    :cvar Idd: moment of inertia in drag direction [m4]
-    :vartype Idd: float
-    :cvar Ill: moment of inertia in lift direction [m4]
-    :vartype Ill: float
+    :cvar I: moment of inertia in drag direction [m4]
+    :vartype I: float
     :cvar mue: mass distribution [t/m]
     :vartype mue: float
     :cvar D: damping [%]
@@ -147,16 +145,14 @@ class buildProp():
     :cvar nT: number of time steps
     :vartype nT: string
     """
-    def __init__(self, H, E, Idd, Ill, mue, D, uH):
+    def __init__(self, H, E, I, mue, D, uH):
         """Inits the class.
         :param H: full-scale building height [m]
         :type H: float
         :param E: E-Modulus [kN/m²]
         :type E: float
-        :param Idd: moment of inertia in drag direction [m4]
-        :type Idd: float
-        :param Ill: moment of inertia in lift direction [m4]
-        :type Ill: float
+        :param I: moment of inertia in drag direction [m4]
+        :type I: float
         :param mue: mass distribution [t/m]
         :type mue: float
         :param D: Damping [%]
@@ -167,8 +163,7 @@ class buildProp():
         # Geometric properties
         self.H      = H
         # Static properties
-        self.Idd    = Idd
-        self.Ill    = Ill
+        self.I    = I
         self.E      = E
 
         # Dynamic properties
