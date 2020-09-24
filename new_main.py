@@ -21,6 +21,7 @@ import aeroForces
 import modelProp
 import scaling
 import fea
+import response
 
 from helpers.pyExtras import getKeyList
 # import calcForcesFromWindtunnel as FFWT
@@ -70,8 +71,23 @@ def main():
     # Compute eigenfrequencies
     feModel.getEigenfrequency()
 
+    # Calc response forces
+    responseForces = response.responseForces(buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+
     # Calc generalized quantities
     feModel.calcGeneralizedQuantitites()
+
+    # Calc response deflections
+    responseDeflections = response.responseDeflection(feModel, responseForces, buildAeroForces.F_p_D)
+
+    # Calc response accelerations
+    responseAccelerations = response.responseAccelerations(feModel, buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+
+    print(responseAccelerations.a_r_rms)
+
+
+
+
 
 
 
