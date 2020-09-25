@@ -26,6 +26,7 @@ import wind
 
 import plotters.plot2D as plt
 from helpers.pyExtras import getKeyList
+from helpers.explorer import delFilesInFolder
 
 # ------------------------------------------------------------------------------
 # Functions
@@ -35,6 +36,9 @@ def main():
     # Get name of input file
     # fname = sys.argv [1]
     fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing-1//T115_4_000_1.mat"
+
+    # Clean up results folder
+    delFilesInFolder('results')
 
     # Full scale building properties
     uH_f    = 46.10             # m/s
@@ -52,7 +56,7 @@ def main():
     windStats = wind.windStats(uH_f)
 
     for RPeriod in getKeyList(windStats.uH):
-        # if "uH_050" in RPeriod:
+        if "uH_050" in RPeriod:
             # Initialize building model properties
             buildProp = modelProp.buildProp(H_f, E, I, mue, D, windStats.uH[RPeriod])
             
@@ -87,11 +91,15 @@ def main():
 
             # Calc response deflections
             responseDeflectionsD = response.responseDeflection(feModel, responseForcesD, buildAeroForces.F_p_D)
+            responseDeflectionsD.writeResultsToFile("results/Drag_deflections.txt", windStats.uH[RPeriod], RPeriod)
             responseDeflectionsL = response.responseDeflection(feModel, responseForcesL, buildAeroForces.F_p_L)
+            responseDeflectionsL.writeResultsToFile("results/Lift_deflections.txt", windStats.uH[RPeriod], RPeriod)
 
             # Calc response accelerations
             responseAccelerationsD = response.responseAccelerations(feModel, buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+            responseAccelerationsD.writeResultsToFile("results/Drag_accelerations.txt", windStats.uH[RPeriod], RPeriod)
             responseAccelerationsL = response.responseAccelerations(feModel, buildAeroForces.BM_p_L, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+            responseAccelerationsL.writeResultsToFile("results/Lift_accelerations.txt", windStats.uH[RPeriod], RPeriod)
 
 if __name__ == '__main__':
     main()

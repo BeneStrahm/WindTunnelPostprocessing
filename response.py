@@ -218,13 +218,13 @@ class amt():
         S_r = self.calcSpectralResponse(fq_p, S_p, f_e, D, r='a')
 
         # Integrate the response spectrum to get rms values
-        a_r_rms = self.numericalIntSpectrum(dT, S_r) / k
+        a_r_std = self.numericalIntSpectrum(dT, S_r) / k
         
         # Compute the peak factor
         g_peak = np.sqrt(2)
 
         # Compute the peak acceleration
-        a_r_max_amt = g_peak * a_r_rms 
+        a_r_max_amt = g_peak * a_r_std 
 
         print("Exact solution:")
         print("F_r_max: " + str(F_r_max_ex))
@@ -289,7 +289,7 @@ class responseForces(amt):
         writeToTxt(fname, "------------------------------")     
 
         # Load statistics
-        writeToTxt(fname, "Aero load statistics")
+        writeToTxt(fname, "Aerodynamic loading")
         writeToTxt(fname, "F_p_mean:      " + '{:02.3f}'.format(self.F_p_mean))
         writeToTxt(fname, "F_p_max:       " + '{:02.3f}'.format(self.F_p_max))
         writeToTxt(fname, "F_p_std:       " + '{:02.3f}'.format(self.F_p_std))
@@ -335,10 +335,32 @@ class responseDeflection:
         """
         # Calculate rms displacement
         self.delta_tip_r_std = feModel.v[0][0] / feModel.K_gen * responseForces.F_r_std
+
+        # Get peak factor
+        self.g_peak = responseForces.g_peak
         
         # Compute the peak loading
-        self.delta_tip_r_max = self.delta_tip_p_mean + responseForces.g_peak * self.delta_tip_r_std 
-        self.delta_tip_r_min = self.delta_tip_p_mean - responseForces.g_peak * self.delta_tip_r_std 
+        self.delta_tip_r_max = self.delta_tip_p_mean + self.g_peak * self.delta_tip_r_std 
+        self.delta_tip_r_min = self.delta_tip_p_mean - self.g_peak * self.delta_tip_r_std 
+    
+    def writeResultsToFile(self, fname, uH_fs, RPeriod):
+        # Investigated wind speed
+        writeToTxt(fname, "------------------------------")
+        writeToTxt(fname, "u_H_mean:      " + '{:02.3f}'.format(uH_fs))
+        writeToTxt(fname, "Return Period: " + RPeriod)
+        writeToTxt(fname, "------------------------------")     
+
+        # Load statistics
+        writeToTxt(fname, "Aerodynamic loading")
+        writeToTxt(fname, "delta_p_mean:    " + '{:02.3f}'.format(self.delta_tip_p_mean))
+        writeToTxt(fname, "------------------------------")  
+
+        # Asses response with spectral analysis      
+        writeToTxt(fname, "Asses response with spectral analysis")
+        writeToTxt(fname, "delta_r_std:     " + '{:02.3f}'.format(self.delta_tip_r_std ))
+        writeToTxt(fname, "g_peak:          " + '{:02.3f}'.format(self.g_peak))
+        writeToTxt(fname, "delta_r_max:     " + '{:02.3f}'.format(self.delta_tip_r_max))
+        writeToTxt(fname, "------------------------------")  
 
 class responseAccelerations(amt):
     def __init__(self, feModel, F_p, dT, fq_e, D, nue, T_exp):
@@ -369,14 +391,28 @@ class responseAccelerations(amt):
         self.S_r = super().calcSpectralResponse(self.fq_p, self.S_p, fq_e, D, r='a')
 
         # Integrate the response spectrum to get rms values
-        self.a_r_rms = super().numericalIntSpectrum(dT, self.S_r)
-        self.a_r_rms = self.a_r_rms * feModel.v[0][0] / feModel.K_gen
+        self.a_r_std = super().numericalIntSpectrum(dT, self.S_r)
+        self.a_r_std = self.a_r_std * feModel.v[0][0] / feModel.K_gen
         
         # Compute the peak factor
         self.g_peak = super().calcPeakFactor(nue, T_exp)
 
         # Compute the peak acceleration
-        self.a_r_max = self.g_peak * self.a_r_rms 
+        self.a_r_max = self.g_peak * self.a_r_std 
+
+    def writeResultsToFile(self, fname, uH_fs, RPeriod):
+        # Investigated wind speed
+        writeToTxt(fname, "------------------------------")
+        writeToTxt(fname, "u_H_mean:      " + '{:02.3f}'.format(uH_fs))
+        writeToTxt(fname, "Return Period: " + RPeriod)
+        writeToTxt(fname, "------------------------------")     
+
+        # Asses response with spectral analysis      
+        writeToTxt(fname, "Asses response with spectral analysis")
+        writeToTxt(fname, "a_r_std:         " + '{:02.3f}'.format(self.a_r_std ))
+        writeToTxt(fname, "g_peak:          " + '{:02.3f}'.format(self.g_peak))
+        writeToTxt(fname, "a_r_max:         " + '{:02.3f}'.format(self.a_r_max))
+        writeToTxt(fname, "------------------------------")  
     
 # ------------------------------------------------------------------------------
 # Functions
