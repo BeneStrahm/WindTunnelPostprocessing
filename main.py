@@ -26,7 +26,7 @@ import wind
 
 import plotters.plot2D as plt
 from helpers.pyExtras import getKeyList
-from helpers.explorer import delFilesInFolder
+from helpers.filemanager import delFilesInFolder
 
 # ------------------------------------------------------------------------------
 # Functions
@@ -47,59 +47,54 @@ def main():
     I       = 477.924           # m4
     E       = 28900 * 10 ** 3   # kN/m2
     mue     = 30473 / H_f       # t/m
+    dns     = ['D', 'L']
 
-    # Load wind tunnel model properties, TPU Database files
-    wtModelProp = modelProp.wtModelProp(fname)
-    wtModelProp.loadTPUModelProp()
+    for dn in dns:    
+        # Load wind tunnel model properties, TPU Database files
+        wtModelProp = modelProp.wtModelProp(fname)
+        wtModelProp.loadTPUModelProp()
 
-    # Calculate wind stats at different return periods
-    windStats = wind.windStats(uH_f)
+        # Calculate wind stats at different return periods
+        windStats = wind.windStats(uH_f)
 
-    for RPeriod in getKeyList(windStats.uH):
-        if "uH_050" in RPeriod:
-            # Initialize building model properties
-            buildProp = modelProp.buildProp(H_f, E, I, mue, D, windStats.uH[RPeriod])
-            
-            # Load aerodynamic forces in model scale
-            wtModelAeroForces = aeroForces.wtModelAeroForces()
-            wtModelAeroForces.loadTPUModelForces(wtModelProp)
+        for RPeriod in getKeyList(windStats.uH):
+            if "uH_050" in RPeriod:
+                # Initialize building model properties
+                buildProp = modelProp.buildProp(H_f, dn, E, I, mue, D, windStats.uH[RPeriod])
+                
+                # Load aerodynamic forces in model scale
+                wtModelAeroForces = aeroForces.wtModelAeroForces()
+                wtModelAeroForces.loadTPUModelForces(wtModelProp, buildProp)
 
-            # Calculate scaling factors
-            scalingFactors = scaling.scalingFactors(wtModelProp, buildProp)
+                # Calculate scaling factors
+                scalingFactors = scaling.scalingFactors(wtModelProp, buildProp)
 
-            # Scale wind tunnel model
-            buildProp.scaleBuildProp(wtModelProp, scalingFactors)
+                # Scale wind tunnel model
+                buildProp.scaleBuildProp(wtModelProp, scalingFactors)
 
-            # Scale forces
-            buildAeroForces = aeroForces.buildAeroForces(scalingFactors, wtModelAeroForces)
+                # Scale forces
+                buildAeroForces = aeroForces.buildAeroForces(scalingFactors, wtModelAeroForces)
 
-            # Create analysis model
-            feModel = fea.feModel(buildProp)
+                # Create analysis model
+                feModel = fea.feModel(buildProp)
 
-            # Compute eigenfrequencies
-            feModel.getEigenfrequency()
+                # Compute eigenfrequencies
+                feModel.getEigenfrequency()
 
-            # Calc generalized quantities
-            feModel.calcGeneralizedQuantitites()
+                # Calc generalized quantities
+                feModel.calcGeneralizedQuantitites()
 
-            # Calc response forces
-            responseForcesD = response.responseForces(buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-            responseForcesD.writeResultsToFile("results/Drag_forces.txt", windStats.uH[RPeriod], RPeriod)
+                # # Calc response forces
+                responseForces = response.responseForces(buildAeroForces.BM_p, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+                responseForces.writeResultsToFile("results/" + dn + "_forces.txt", windStats.uH[RPeriod], RPeriod)
 
-            responseForcesL = response.responseForces(buildAeroForces.BM_p_L, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-            responseForcesL.writeResultsToFile("results/Lift_forces.txt", windStats.uH[RPeriod], RPeriod)
+                # Calc response deflections
+                responseDeflections = response.responseDeflection(feModel, responseForces, buildAeroForces.LF_p)
+                responseDeflections.writeResultsToFile("results/" + dn + "_deflections.txt", windStats.uH[RPeriod], RPeriod)
 
-            # Calc response deflections
-            responseDeflectionsD = response.responseDeflection(feModel, responseForcesD, buildAeroForces.F_p_D)
-            responseDeflectionsD.writeResultsToFile("results/Drag_deflections.txt", windStats.uH[RPeriod], RPeriod)
-            responseDeflectionsL = response.responseDeflection(feModel, responseForcesL, buildAeroForces.F_p_L)
-            responseDeflectionsL.writeResultsToFile("results/Lift_deflections.txt", windStats.uH[RPeriod], RPeriod)
-
-            # Calc response accelerations
-            responseAccelerationsD = response.responseAccelerations(feModel, buildAeroForces.BM_p_D, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-            responseAccelerationsD.writeResultsToFile("results/Drag_accelerations.txt", windStats.uH[RPeriod], RPeriod)
-            responseAccelerationsL = response.responseAccelerations(feModel, buildAeroForces.BM_p_L, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-            responseAccelerationsL.writeResultsToFile("results/Lift_accelerations.txt", windStats.uH[RPeriod], RPeriod)
+                # Calc response accelerations
+                responseAccelerations = response.responseAccelerations(feModel, buildAeroForces.BM_p, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
+                responseAccelerations.writeResultsToFile("results/" + dn + "_accelerations.txt", windStats.uH[RPeriod], RPeriod)
 
 if __name__ == '__main__':
     main()

@@ -26,7 +26,8 @@ import numpy as np
 # F...  force
 # H...  (at) height of building
 # sp..  sample
-# fq...  frequency
+# fq... frequency
+# dn... direction
 # ------------------------------------------------------------------------------
 # Classes
 # ------------------------------------------------------------------------------  
@@ -112,6 +113,8 @@ class buildProp():
     """Class containing the full scale properties of the building
     :cvar H: full-scale building height [m]
     :vartype H: float
+    :cvar dn: investigated direction ['D', 'L']
+    :vartype dn: str
     :cvar E: E-Modulus [kN/m²]
     :vartype E: float
     :cvar I: moment of inertia in drag direction [m4]
@@ -145,10 +148,12 @@ class buildProp():
     :cvar nT: number of time steps
     :vartype nT: string
     """
-    def __init__(self, H, E, I, mue, D, uH):
+    def __init__(self, H, dn, E, I, mue, D, uH):
         """Inits the class.
         :param H: full-scale building height [m]
         :type H: float
+        :param dn: investigated direction ['D', 'L']
+        :type dn: str
         :param E: E-Modulus [kN/m²]
         :type E: float
         :param I: moment of inertia in drag direction [m4]
@@ -162,8 +167,11 @@ class buildProp():
         """
         # Geometric properties
         self.H      = H
+
+        # Investigated direciton
+        self.dn     = dn
         # Static properties
-        self.I    = I
+        self.I      = I
         self.E      = E
 
         # Dynamic properties

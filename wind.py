@@ -16,7 +16,6 @@ from helpers.pyExtras import getKeyList
 # ------------------------------------------------------------------------------
 # Abbreviations
 # ------------------------------------------------------------------------------
-
 # p...  load
 # r...  response
 # ms... model scale
@@ -28,7 +27,7 @@ from helpers.pyExtras import getKeyList
 # H...  (at) height of building
 # sp..  sample
 # fq...  frequency
-
+# dn... direction
 # ------------------------------------------------------------------------------
 # Classes
 # ------------------------------------------------------------------------------  

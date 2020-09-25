@@ -24,7 +24,6 @@ from feastruct.solvers.feasolve import SolverSettings
 # ------------------------------------------------------------------------------
 # Abbreviations
 # ------------------------------------------------------------------------------
-
 # p...  load
 # r...  response
 # ms... model scale
@@ -36,7 +35,7 @@ from feastruct.solvers.feasolve import SolverSettings
 # H...  (at) height of building
 # sp..  sample
 # fq...  frequency
-
+# dn... direction
 # ------------------------------------------------------------------------------
 # Classes
 # ------------------------------------------------------------------------------  

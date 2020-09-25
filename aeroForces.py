@@ -25,7 +25,8 @@ import numpy as np
 # F...  force
 # H...  (at) height of building
 # sp..  sample
-# fq...  frequency
+# fq... frequency
+# dn... direction
 # ------------------------------------------------------------------------------
 # Classes
 # ------------------------------------------------------------------------------  
@@ -35,28 +36,24 @@ class wtModelAeroForces:
     :vartype Cp: list[float, float]
     :cvar F_p: time series of wind forces at measured points
     :vartype F_p: list[float, float]
-    :cvar BF_p_D: time series of base shear in drag direction
-    :vartype BF_p_D: np.arr[float]
-    :cvar BF_p_L: time series of base shear in lift direction
-    :vartype BF_p_L: np.arr[float]
-    :cvar BM_p_D: time series of base moment in drag direction
-    :vartype BM_p_D: np.arr[float]
-    :cvar BM_p_L: time series of base moment in lift direction
-    :vartype BM_p_L: np.arr[float]
-    :cvar F_p_D: time series of forces at each level in drag direction
-    :vartype F_p_D: np.arr[float, float]
-    :cvar F_p_L: time series of forces at each level in lift direction
-    :vartype F_p_L: np.arr[float, float]
+    :cvar BF_p: time series of base shear 
+    :vartype BF_p: np.arr[float]
+    :cvar BM_p: time series of base moment 
+    :vartype BM_p: np.arr[float]
+    :cvar LF_p: time series of forces at each level
+    :vartype LF_p: np.arr[float, float]
     """
     def __init__(self):
         """Inits the class
         """
         pass
 
-    def loadTPUModelForces(self, wtModelProp):
+    def loadTPUModelForces(self, wtModelProp, buildProp):
         """Loading measured wind tunnel model forces
         :param wtModelProp: model scale properties of the building
         :type wtModelProp: :class:`~modelProp.wtModelProp`
+        :param buildProp: full scale properties of the building
+        :type buildProp: :class:`~modelProp.buildProp`
         """
         # Load matlab file
         mat         = h5s.loadmat(wtModelProp.fname)
@@ -68,78 +65,77 @@ class wtModelAeroForces:
         self.F_p = wtModelProp.A_i * self.Cp * 0.5 * wtModelProp.rho_air  * wtModelProp.uH  ** 2 * 10 ** -3
 
         # Calculating base forces
-        self.calcModelBaseForces(wtModelProp)
+        self.calcModelBaseForces(wtModelProp, buildProp)
 
         # Calculating floor forces
-        self.calcModelFloorForces(wtModelProp)
+        self.calcModelFloorForces(wtModelProp, buildProp)
 
-    def calcModelBaseForces(self, wtModelProp):
+    def calcModelBaseForces(self, wtModelProp, buildProp):
         """Calculating base forces from wind tunnel model forces in model scale
         :param wtModelProp: model scale properties of the building
         :type wtModelProp: :class:`~modelProp.wtModelProp`
+        :param buildProp: full scale properties of the building
+        :type buildProp: :class:`~modelProp.buildProp`
         """
-        # Sort in drag / lift base forces
-        self.BF_p_D, self.BF_p_L= np.zeros(wtModelProp.nT), np.zeros(wtModelProp.nT)
-        self.BM_p_D, self.BM_p_L= np.zeros(wtModelProp.nT), np.zeros(wtModelProp.nT)
+        # Sort in forces
+        self.BF_p = np.zeros(wtModelProp.nT)
+        self.BM_p = np.zeros(wtModelProp.nT)
         
         # shape(F) = (nT, i) -> Loop over columns of array
+      
         for i, F_i in enumerate(self.F_p.T, 0):
             # Face 1 -> +DragF, +DragM
-            if wtModelProp.face[i] == 1:
-                self.BF_p_D = self.BF_p_D + F_i
-                self.BM_p_D = self.BM_p_D + F_i * wtModelProp.z[i] 
+            if wtModelProp.face[i] == 1 and buildProp.dn == 'D':
+                self.BF_p = self.BF_p + F_i
+                self.BM_p = self.BM_p + F_i * wtModelProp.z[i] 
             # Face 2 -> +LiftF, -LiftM
-            elif wtModelProp.face[i] == 2:
-                self.BF_p_L = self.BF_p_L + F_i
-                self.BM_p_L = self.BM_p_L - F_i * wtModelProp.z[i] 
+            elif wtModelProp.face[i] == 2 and buildProp.dn == 'L':
+                self.BF_p = self.BF_p + F_i
+                self.BM_p = self.BM_p - F_i * wtModelProp.z[i] 
             # Face 3 -> -DragF, -DragM
-            elif wtModelProp.face[i] == 3:
-                self.BF_p_D = self.BF_p_D - F_i
-                self.BM_p_D = self.BM_p_D - F_i * wtModelProp.z[i] 
+            elif wtModelProp.face[i] == 3 and buildProp.dn == 'D':
+                self.BF_p = self.BF_p - F_i
+                self.BM_p = self.BM_p - F_i * wtModelProp.z[i] 
             # Face 4 -> -LiftF, +LiftM
-            elif wtModelProp.face[i] == 4:
-                self.BF_p_L = self.BF_p_L - F_i
-                self.BM_p_L = self.BM_p_L + F_i * wtModelProp.z[i] 
+            elif wtModelProp.face[i] == 4 and buildProp.dn == 'L':
+                self.BF_p = self.BF_p - F_i
+                self.BM_p = self.BM_p + F_i * wtModelProp.z[i] 
 
-    def calcModelFloorForces(self, wtModelProp):
+    def calcModelFloorForces(self, wtModelProp, buildProp):
         """Calculating floor forces from wind tunnel model forces in model scale
         :param wtModelProp: model scale properties of the building
         :type wtModelProp: :class:`~modelProp.wtModelProp`
+        :param buildProp: full scale properties of the building
+        :type buildProp: :class:`~modelProp.buildProp`
         """
         # Sort in drag / lift forces for each floor
-        self.F_p_D, self.F_p_L= np.zeros((wtModelProp.nz, wtModelProp.nT)), np.zeros((wtModelProp.nz, wtModelProp.nT))
+        self.LF_p = np.zeros((wtModelProp.nz, wtModelProp.nT))
 
         # shape(F) = (nT, i) -> Loop over columns of array
         for i, F_i in enumerate(self.F_p.T, 0):
             # get index where to sort to
             j = np.where(wtModelProp.z_lev == wtModelProp.z[i])
             # Face 1 -> +DragF, +DragM
-            if wtModelProp.face[i] == 1:
-                self.F_p_D[j,:] = self.F_p_D[j,:] + F_i
+            if wtModelProp.face[i] == 1 and buildProp.dn == 'D':
+                self.LF_p[j,:] = self.LF_p[j,:] + F_i
             # Face 2 -> +LiftF, -LiftM
-            elif wtModelProp.face[i] == 2:
-                self.F_p_L[j,:] = self.F_p_L[j,:] + F_i
+            elif wtModelProp.face[i] == 2 and buildProp.dn == 'L':
+                self.LF_p[j,:] = self.LF_p[j,:] + F_i
             # Face 3 -> -DragF, -DragM
-            elif wtModelProp.face[i] == 3:
-                self.F_p_D[j,:] = self.F_p_D[j,:] - F_i
+            elif wtModelProp.face[i] == 3 and buildProp.dn == 'D':
+                self.LF_p[j,:] = self.LF_p[j,:] - F_i
            # Face 4 -> -LiftF, +LiftM
-            elif wtModelProp.face[i] == 4:
-                self.F_p_L[j,:] = self.F_p_L[j,:] - F_i
+            elif wtModelProp.face[i] == 4 and buildProp.dn == 'L':
+                self.LF_p[j,:] = self.LF_p[j,:] - F_i
 
 class buildAeroForces:
     """Class containing the building scale forces of the wind tunnel
-    :cvar BF_p_D: time series of base shear in drag direction
-    :vartype BF_p_D: np.arr[float]
-    :cvar BF_p_L: time series of base shear in lift direction
-    :vartype BF_p_L: np.arr[float]
-    :cvar BM_p_D: time series of base moment in drag direction
-    :vartype BM_p_D: np.arr[float]
-    :cvar BM_p_L: time series of base moment in lift direction
-    :vartype BM_p_L: np.arr[float]
-    :cvar F_p_D: time series of forces at each level in drag direction
-    :vartype F_p_D: np.arr[float, float]
-    :cvar F_p_L: time series of forces at each level in lift direction
-    :vartype F_p_L: np.arr[float, float]
+    :cvar BF_p: time series of base shear
+    :vartype BF_p: np.arr[float]
+    :cvar BM_p: time series of base moment
+    :vartype BM_p: np.arr[float]
+    :cvar LF_p: time series of forces at each level
+    :vartype LF_p: np.arr[float, float]
     """
     def __init__(self, scalingFactors, wtModelAeroForces):
         """Inits the class
@@ -159,14 +155,11 @@ class buildAeroForces:
         :type scalingFactors: :class:`~aeroForces.wtModelAeroForces`
         """
         # Scale floor forces
-        self.F_p_D = wtModelAeroForces.F_p_D * scalingFactors.lambda_F
-        self.F_p_L = wtModelAeroForces.F_p_L * scalingFactors.lambda_F
+        self.LF_p = wtModelAeroForces.LF_p * scalingFactors.lambda_F
         
         # Scale base forces
-        self.BF_p_D = wtModelAeroForces.BF_p_D * scalingFactors.lambda_F 
-        self.BF_p_L = wtModelAeroForces.BF_p_L * scalingFactors.lambda_F
-        self.BM_p_D = wtModelAeroForces.BM_p_D * scalingFactors.lambda_M
-        self.BM_p_L = wtModelAeroForces.BM_p_L * scalingFactors.lambda_M
+        self.BF_p = wtModelAeroForces.BF_p * scalingFactors.lambda_F 
+        self.BM_p = wtModelAeroForces.BM_p * scalingFactors.lambda_M
 
 # ------------------------------------------------------------------------------
 # Functions
