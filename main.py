@@ -41,7 +41,7 @@ def main():
     delFilesInFolder('results')
 
     # Full scale building properties
-    uH_f    = 46.10             # m/s
+    uH_f    = 37.59             # m/s
     H_f     = 128               # m
     D       = 0.02              # %
     I       = 477.924           # m4
@@ -64,7 +64,7 @@ def main():
         a_r_max = []
 
         for RPeriod in getKeyList(windStats.uH):
-            if "uH_050" in RPeriod:
+            if RPeriod in ["uH_050", "uH_002"]:
                 # Initialize building model properties
                 buildProp = modelProp.buildProp(H_f, dn, E, I, mue, D, windStats.uH[RPeriod])
                 u_design.append(windStats.uH[RPeriod])
