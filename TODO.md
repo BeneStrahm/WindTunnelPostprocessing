@@ -1,4 +1,4 @@
-# Project Name
+# General developments
 
 Project Description
 
@@ -8,12 +8,15 @@ Project Description
 - [ ] Implement Wind rose plot  
 - [ ] Implement Support for arbitrary wind direction  
 - [ ] Implement Stiffness optimization  
-- [ ] Implement real mass distribution  
+- [ ] Implement Real mass distribution  
+- [ ] Compare a sample with fully dynamic fe-calculation  
+- [ ] Update docstrings 
+- [ ] Optimize spectral plot function 
 
 ### In Progress
 
-- [ ] Implement Spectral Plot  
 
 ### Done ✓
 
+- [x] Implement Spectral Plot  
 
