@@ -148,10 +148,12 @@ class buildProp():
     :cvar nT: number of time steps
     :vartype nT: string
     """
-    def __init__(self, H, dn, E, I, mue, D, uH):
+    def __init__(self, H, B, dn, E, I, mue, D, uH):
         """Inits the class.
         :param H: full-scale building height [m]
         :type H: float
+        :param B: full-scale building width [m]
+        :type B: float
         :param dn: investigated direction ['D', 'L']
         :type dn: str
         :param E: E-Modulus [kN/m²]
@@ -167,6 +169,7 @@ class buildProp():
         """
         # Geometric properties
         self.H      = H
+        self.B      = B
 
         # Investigated direciton
         self.dn     = dn
