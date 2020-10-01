@@ -10,11 +10,14 @@
 # ------------------------------------------------------------------------------  
 import numpy as np
 from scipy import integrate
+from scipy.signal import savgol_filter
+from scipy.interpolate import griddata
 # ------------------------------------------------------------------------------
 # Imported functions
 # ------------------------------------------------------------------------------
 from helpers.txtEditor import writeToTxt
 import plotters.plot2D as plt
+from helpers.pyExtras import getKeyList
 # ------------------------------------------------------------------------------
 # Abbreviations
 # ------------------------------------------------------------------------------
@@ -30,9 +33,18 @@ import plotters.plot2D as plt
 # sp..  sample
 # fq... frequency
 # dn... direction
+
 # ------------------------------------------------------------------------------
 # Classes
 # ------------------------------------------------------------------------------  
+
+def run_once(f):
+        def wrapper(*args, **kwargs):
+            if not wrapper.has_run:
+                wrapper.has_run = True
+                return f(*args, **kwargs)
+        wrapper.has_run = False
+        return wrapper
 
 class amt():
     """Aerodynamic model theorie
@@ -132,6 +144,118 @@ class amt():
         """
         g_peak = np.sqrt(2 * np.log(nue * T_exp)) + 0.5772 / np.sqrt((2 * np.log(nue * T_exp)))
         return g_peak
+
+    # @run_once
+    def plotSpectrum(self, f, S, B, uH, F_ms, title, fname, vLines=None, vTexts=None, mode='reduced'):
+        """Compute the peak factor
+        :param nue: effective cycling rate, freq. w/ most energy
+        :type nue: float
+        :param T_exp: exposure period, same basis as ref. wind speed
+        :type T_exp: float
+        """
+        # Function fit
+        S_fit = savgol_filter(S, 101, 3)      # window size 51, polynomial order 3
+
+        if mode == 'reduced':
+            # Reduced frequency = f*B/U
+            x = [f*B/uH]
+
+            # Reduced PSD = f * S(f) / F_ms
+            y = [f*S/F_ms, f*S_fit/F_ms]
+            
+            # Set up the labels
+            xlabel = r'$f \cdot B \slash U_{H}$'
+            ylabel = r'$f \cdot S(f) \slash \sigma^{2}$'
+
+        elif mode == 'real':
+            # Frequency
+            x = [f]
+
+            # PSD
+            y = [S, S_fit]
+
+            # Set up the labels
+            xlabel = r'$f$'
+            ylabel = r'$S(f)$'
+            
+        else:
+            raise ('Invalid argument for spectral plot: Choose "reduced" or "real"')        
+
+        # Crop to window with senseful data
+        # xlim = [np.min(x[0])*10**1,np.max(x[0])*10**-1]
+        ylim = [np.max(y[1])*10**-4,np.max(y[1])*10**1]
+
+        legend = ["measured", "fitted"]
+       
+        style_dict = {"lines.linewidth":0.5, 'savefig.format':'svg'}
+        
+        plt.plot2D(x, y, xlabel, ylabel, title, legend, dir_fileName=fname,
+                    vLines=vLines, vTexts=vTexts,  
+                    xlim=[], ylim=ylim, xscale='log', yscale='log',
+                    style_dict=style_dict, mpl='default', colorScheme='Monochrome', variation='color',
+                    savePlt=True, savePkl=False, showPlt=False)
+
+    # @run_once
+    def plotLoadSpectum(self, windStats, buildProp, feModel, responseForces, fname, mode='reduced'):
+        """Compute the peak factor
+        :param nue: effective cycling rate, freq. w/ most energy
+        :type nue: float
+        :param T_exp: exposure period, same basis as ref. wind speed
+        :type T_exp: float
+        """
+        f   = responseForces.fq_p
+        S   = responseForces.S_p
+
+        B   = buildProp.B
+        uH  = buildProp.uH
+
+        fq_e= feModel.fq_e
+
+        uH_r= windStats.uH
+
+        vLines, vTexts = [], []  
+
+        for rPeriod in getKeyList(uH_r):
+            if rPeriod in ["uH_050", "uH_002"]:
+                vLines.append(fq_e * B / uH_r[rPeriod])
+                vTexts.append(r'$R=$' + str(int(rPeriod[-3:])) + r'$ yr$')
+
+        if buildProp.dn == 'D':
+            title = "Load spectrum in drag direction"
+        elif buildProp.dn == 'L':
+            title = "Load spectrum in lift direction"
+
+        F_ms=responseForces.F_p_std**2
+
+        self.plotSpectrum(f, S, B, uH, F_ms, title, fname, vLines=vLines, vTexts=vTexts, mode=mode)
+    
+    # @run_once
+    def plotResponseSpectrum(self, windStats, buildProp, feModel, responseForces, fname, mode='reduced'):
+        """Compute the peak factor
+        :param nue: effective cycling rate, freq. w/ most energy
+        :type nue: float
+        :param T_exp: exposure period, same basis as ref. wind speed
+        :type T_exp: float
+        """
+        f   = responseForces.fq_p
+        S   = responseForces.S_r
+
+        B   = buildProp.B
+        uH  = buildProp.uH
+
+        fq_e= feModel.fq_e
+
+        uH_r= windStats.uH
+
+        if buildProp.dn == 'D':
+            title = "Response spectrum in drag direction"
+        elif buildProp.dn == 'L':
+            title = "Response spectrum in lift direction"
+
+        F_ms=responseForces.F_p_std**2
+
+        self.plotSpectrum(f, S, B, uH, F_ms, title, fname, vLines=None, vTexts=None, mode=mode)
+    
 
     def amtValidation(self):
         # --- Conventions --#
@@ -257,12 +381,14 @@ class responseForces(amt):
         self.F_p_max  = np.max(F_p)
         self.F_p_min  = np.min(F_p)
         self.F_p_std  = np.std(F_p)
-
         # Transform only the fluctuations "F_p_prime" to frequency domain
         self.F_p_prime = F_p - self.F_p_mean
 
         # Transform time series of forces into the spectral domain
         self.S_p, self.fq_p = super().transToSpectralDomain(self.F_p_prime, dT)
+
+        # Integrate the load spectrum to get rms values
+        self.F_p_std = super().numericalIntSpectrum(dT, self.S_p)
 
         # Calculate the response spectrum
         self.S_r = super().calcSpectralResponse(self.fq_p, self.S_p, fq_e, D, r='bm')
