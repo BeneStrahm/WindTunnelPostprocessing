@@ -68,6 +68,8 @@ class feModel:
         self.material = Material("Dummy", buildProp.E, 0.3, buildProp.mue, colour='w')
         self.section = Section(area=1, ixx=buildProp.I)
 
+
+
         # nodes are objects
         self.nodes = []
         for i in range(0,self.n+2): #! n+2 (support, tip)
@@ -76,9 +78,53 @@ class feModel:
 
         # and so are beams!
         self.beams = []
-        for i in range(0,self.n+1): #! n+1 (support, tip)
+        # for i in range(0,self.n+1): #! n+1 (support, tip)
+        #     beam = self.analysis.create_element(
+        #         el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section)
+        #     self.beams.append(beam)
+
+        # Distributed stiffness
+
+        ####                40%
+        ####                
+        ######              60%
+        ######
+        ########            80%
+        ########
+        ##########          100%
+        ##########
+                
+        # Minimal stiffnes per section
+        I_min = ((16.0+0.075)**4 - (16.0-0.075)**4)/12
+
+        I_1 = np.max([1.0000 * buildProp.I, I_min])          # Bottom module
+        I_2 = np.max([0.8000 * buildProp.I, I_min])
+        I_3 = np.max([0.6000 * buildProp.I, I_min])	
+        I_4 = np.max([0.4000 * buildProp.I, I_min])          # Top module
+
+        self.section_1 = Section(area=1, ixx=I_1)
+        self.section_2 = Section(area=1, ixx=I_2)
+        self.section_3 = Section(area=1, ixx=I_3)
+        self.section_4 = Section(area=1, ixx=I_4)
+
+        for i in range(0,6): #! n+1 (support, tip)
             beam = self.analysis.create_element(
-                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section)
+                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_4)
+            self.beams.append(beam)
+
+        for i in range(6, 11): #! n+1 (support, tip)
+            beam = self.analysis.create_element(
+                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_3)
+            self.beams.append(beam)
+
+        for i in range(11, 16): #! n+1 (support, tip)
+            beam = self.analysis.create_element(
+                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_2)
+            self.beams.append(beam)
+
+        for i in range(16, 21): #! n+1 (support, tip)
+            beam = self.analysis.create_element(
+                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_1)
             self.beams.append(beam)
 
         # boundary conditions are objects
@@ -171,10 +217,10 @@ class feModel:
         # post
         # ----
         # there are plenty of post processing options!
-        # analysis.post.plot_geom(analysis_case=analysis_case)
+        # self.analysis.post.plot_geom(analysis_case=analysis_case)
         # analysis.post.plot_geom(analysis_case=analysis_case, deformed=True, def_scale=1e2)
         # analysis.post.plot_frame_forces(analysis_case=analysis_case, shear=True)
-        # analysis.post.plot_frame_forces(analysis_case=analysis_case, moment=True)
+        # self.analysis.post.plot_frame_forces(analysis_case=analysis_case, moment=True)
         # analysis.post.plot_reactions(analysis_case=analysis_case)
         
         # Support reactions, to check bending moment for validation

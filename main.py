@@ -94,18 +94,18 @@ def main():
 
                 # # Calc response forces
                 responseForces = response.responseForces(buildAeroForces.BM_p, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-                responseForces.writeResultsToFile("results/" + dn + "_forces.txt", windStats.uH[rPeriod], rPeriod)
-                responseForces.plotLoadSpectum(windStats, buildProp, feModel, responseForces, "results/" + dn + "_loadSpectrum", mode='reduced')
-                responseForces.plotResponseSpectrum(windStats, buildProp, feModel, responseForces, "results/" + dn + "_responseSpectrum", mode='real')
+                responseForces.writeResultsToFile("T114_6/results/" + dn + "_forces.txt", windStats.uH[rPeriod], rPeriod)
+                responseForces.plotLoadSpectum(windStats, buildProp, feModel, responseForces, "T114_6/results/" + dn + "_loadSpectrum", mode='reduced')
+                responseForces.plotResponseSpectrum(windStats, buildProp, feModel, responseForces, "T114_6/results/" + dn + "_responseSpectrum", mode='real')
 
                 # Calc response deflections
                 responseDeflections = response.responseDeflection(feModel, responseForces, buildAeroForces.LF_p)
-                responseDeflections.writeResultsToFile("results/" + dn + "_deflections.txt", windStats.uH[rPeriod], rPeriod)
+                responseDeflections.writeResultsToFile("T114_6/results/" + dn + "_deflections.txt", windStats.uH[rPeriod], rPeriod)
                 delta_r_max.append(responseDeflections.delta_tip_r_max)
 
                 # Calc response accelerations
                 responseAccelerations = response.responseAccelerations(feModel, buildAeroForces.BM_p, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-                responseAccelerations.writeResultsToFile("results/" + dn + "_accelerations.txt", windStats.uH[rPeriod], rPeriod)
+                responseAccelerations.writeResultsToFile("T114_6/results/" + dn + "_accelerations.txt", windStats.uH[rPeriod], rPeriod)
                 a_r_max.append(responseAccelerations.a_r_max)
 
         # plt.plot2D([u_design, u_design, u_design], [M_r_max/M_r_max[-1], delta_r_max/delta_r_max[-1] , a_r_max/a_r_max[-1]], 'Wind Speed', 'Normalized response',
