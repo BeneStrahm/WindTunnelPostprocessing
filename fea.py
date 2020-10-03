@@ -45,7 +45,7 @@ class feModel:
     :cvar coords: Cartesian coordinates of the node
     :vartype coords: list[float, float, float]
     """
-    def __init__(self, buildProp):
+    def __init__(self, buildProp, t = 0):
         """Inits the class, setting up calculation model
         :param buildProp: full scale properties of the building
         :type buildProp: :class:`~modelProp.buildProp`
@@ -64,12 +64,6 @@ class feModel:
         # everything starts with the analysis object
         self.analysis = FrameAnalysis2D()
 
-        # materials and sections are objects
-        self.material = Material("Dummy", buildProp.E, 0.3, buildProp.mue, colour='w')
-        self.section = Section(area=1, ixx=buildProp.I)
-
-
-
         # nodes are objects
         self.nodes = []
         for i in range(0,self.n+2): #! n+2 (support, tip)
@@ -77,55 +71,86 @@ class feModel:
             self.nodes.append(node)
 
         # and so are beams!
-        self.beams = []
-        # for i in range(0,self.n+1): #! n+1 (support, tip)
-        #     beam = self.analysis.create_element(
-        #         el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section)
-        #     self.beams.append(beam)
+        design = 'const'
+        if design == "const":
+            # Recalculate dist. mass
+            # mue = [mue(slabs) + mue(sdl) + mue(ll)] + mue(wall = h * A * 2.5t/m3)
+            mue_walls = ((16+t)**2-(16-t)**2) * 2.5 
+            mue = buildProp.mue + 1.0000 * mue_walls
+            feModel.MTot= mue * buildProp.H
+            
+            # materials and sections are objects
+            self.material = Material("Dummy", buildProp.E, 0.3, buildProp.mue, colour='w')
+            self.section = Section(area=1, ixx=buildProp.I)
 
-        # Distributed stiffness
+            self.beams = []
+            for i in range(0,self.n+1): #! n+1 (support, tip)
+                beam = self.analysis.create_element(
+                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section)
+                self.beams.append(beam)
 
-        ####                40%
-        ####                
-        ######              60%
-        ######
-        ########            80%
-        ########
-        ##########          100%
-        ##########
-                
-        # Minimal stiffnes per section
-        I_min = ((16.0+0.075)**4 - (16.0-0.075)**4)/12
+        elif design == "optimized":
+            self.beams = []
+            # Calc Moment of inertia
+            I = ((16+t/2)**4-(16-t/2)**4)/12
+                    
+            # Minimal stiffnes per section
+            I_min = ((16.0+0.075)**4 - (16.0-0.075)**4)/12
 
-        I_1 = np.max([1.0000 * buildProp.I, I_min])          # Bottom module
-        I_2 = np.max([0.8000 * buildProp.I, I_min])
-        I_3 = np.max([0.6000 * buildProp.I, I_min])	
-        I_4 = np.max([0.4000 * buildProp.I, I_min])          # Top module
+            # Assume dist. stiffness
+            ####                40%
+            ####                
+            ######              60%
+            ######
+            ########            80%
+            ########
+            ##########          100%
+            ##########
 
-        self.section_1 = Section(area=1, ixx=I_1)
-        self.section_2 = Section(area=1, ixx=I_2)
-        self.section_3 = Section(area=1, ixx=I_3)
-        self.section_4 = Section(area=1, ixx=I_4)
+            I_1 = np.max([1.0000 * I, I_min])          # Bottom module
+            I_2 = np.max([0.8000 * I, I_min])
+            I_3 = np.max([0.6000 * I, I_min])	
+            I_4 = np.max([0.4000 * I, I_min])          # Top module
 
-        for i in range(0,6): #! n+1 (support, tip)
-            beam = self.analysis.create_element(
-                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_4)
-            self.beams.append(beam)
+            self.section_1 = Section(area=1, ixx=I_1)
+            self.section_2 = Section(area=1, ixx=I_2)
+            self.section_3 = Section(area=1, ixx=I_3)
+            self.section_4 = Section(area=1, ixx=I_4)
 
-        for i in range(6, 11): #! n+1 (support, tip)
-            beam = self.analysis.create_element(
-                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_3)
-            self.beams.append(beam)
+            # Recalculate dist. mass
+            # mue = [mue(slabs) + mue(sdl) + mue(ll)] + mue(wall = h * A * 2.5t/m3)
+            mue_walls = ((16+t)**2-(16-t)**2) * 2.5 
+            mue_1 = buildProp.mue + 1.0000 * mue_walls
+            mue_2 = buildProp.mue + 0.8000 * mue_walls
+            mue_3 = buildProp.mue + 0.6000 * mue_walls
+            mue_4 = buildProp.mue + 0.4000 * mue_walls
 
-        for i in range(11, 16): #! n+1 (support, tip)
-            beam = self.analysis.create_element(
-                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_2)
-            self.beams.append(beam)
+            self.material_1 = Material("Dummy", buildProp.E, 0.3, mue_1, colour='w')
+            self.material_2 = Material("Dummy", buildProp.E, 0.3, mue_2, colour='w')
+            self.material_3 = Material("Dummy", buildProp.E, 0.3, mue_3, colour='w')
+            self.material_4 = Material("Dummy", buildProp.E, 0.3, mue_4, colour='w')
 
-        for i in range(16, 21): #! n+1 (support, tip)
-            beam = self.analysis.create_element(
-                el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section_1)
-            self.beams.append(beam)
+            feModel.MTot = (mue_1 + mue_2 + mue_3 + mue_4) * 128 / 4
+
+            for i in range(0,6): #! n+1 (support, tip)
+                beam = self.analysis.create_element(
+                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_4, section=self.section_4)
+                self.beams.append(beam)
+
+            for i in range(6, 11): #! n+1 (support, tip)
+                beam = self.analysis.create_element(
+                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_3, section=self.section_3)
+                self.beams.append(beam)
+
+            for i in range(11, 16): #! n+1 (support, tip)
+                beam = self.analysis.create_element(
+                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_2, section=self.section_2)
+                self.beams.append(beam)
+
+            for i in range(16, 21): #! n+1 (support, tip)
+                beam = self.analysis.create_element(
+                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_1, section=self.section_1)
+                self.beams.append(beam)
 
         # boundary conditions are objects
         self.freedom_case = cases.FreedomCase()
@@ -157,11 +182,11 @@ class feModel:
 
         # Get the global stiffness / mass matrix
         (K, Kg) = solver.assemble_stiff_matrix()
-        M = solver.assemble_mass_matrix()
+        self.M = solver.assemble_mass_matrix()
 
         # apply the boundary conditions
         self.K_mod = solver.remove_constrained_dofs(K=K, analysis_case=analysis_case)
-        self.M_mod = solver.remove_constrained_dofs(K=M, analysis_case=analysis_case)
+        self.M_mod = solver.remove_constrained_dofs(K=self.M, analysis_case=analysis_case)
 
         # Solve for the eigenvalues
         (self.fq_e, self.v) = solver.solve_eigenvalue(A=self.K_mod, M=self.M_mod, eigen_settings=settings.natural_frequency)
