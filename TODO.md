@@ -12,6 +12,7 @@ Project Description
 - [ ] Compare a sample with fully dynamic fe-calculation  
 - [ ] Update docstrings 
 - [ ] Optimize spectral plot function 
+- [ ] Adding SDL, LL to distributed mass !
 
 ### In Progress
 
