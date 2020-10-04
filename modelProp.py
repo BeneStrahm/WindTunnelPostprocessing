@@ -113,6 +113,14 @@ class buildProp():
     """Class containing the full scale properties of the building
     :cvar H: full-scale building height [m]
     :vartype H: float
+    :cvar B: full-scale building width [m]
+    :vartype B: float
+    :cvar nF: number of floors
+    :vartype nF: int
+    :cvar nM: number of modules
+    :vartype nM: int
+    :cvar hL: height of the levels [m]
+    :vartype hL: float
     :cvar dn: investigated direction ['D', 'L']
     :vartype dn: str
     :cvar E: E-Modulus [kN/m²]
@@ -147,13 +155,23 @@ class buildProp():
     :vartype T: string
     :cvar nT: number of time steps
     :vartype nT: string
+    :cvar structSys: Type of structural system ['concreteCore']
+    :vartype structSys: str
+    :cvar bCore: core wall width [m]
+    :vartype bCore: float
+    :cvar t: core wall thickness at the base [m]
+    :vartype t: float
     """
-    def __init__(self, H, B, dn, E, I, mue, D, uH):
+    def __init__(self, H, B, nF, nM, dn, E, I, mue, D, uH, structSys=None, t=None, bCore=None):
         """Inits the class.
         :param H: full-scale building height [m]
         :type H: float
         :param B: full-scale building width [m]
         :type B: float
+        :param nF: number of floors
+        :type nF: int
+        :param nM: number of modules
+        :type nM: int
         :param dn: investigated direction ['D', 'L']
         :type dn: str
         :param E: E-Modulus [kN/m²]
@@ -166,13 +184,28 @@ class buildProp():
         :type D: float
         :param uH: full scale wind speed at top of the building [m/s]
         :type uH: float
+        :param structSys: Type of structural system ['concreteCore']
+        :type structSys: str
+        :param bCore: core wall width [m]
+        :type bCore: float
+        :param t: core wall thickness at the base [m]
+        :type t: float
         """
         # Geometric properties
         self.H      = H
         self.B      = B
+        self.nF     = nF
+        self.nM     = nM
+        self.hL     = H / nF
 
-        # Investigated direciton
+        # Structural system dependend variables
+        self.structSys  = structSys
+        self.bCore      = bCore
+        self.t          = t
+
+        # Investigated direction
         self.dn     = dn
+
         # Static properties
         self.I      = I
         self.E      = E
