@@ -13,11 +13,11 @@ Project Description
 
 ### In Progress
 
-- [ ] Adding SDL, LL to distributed mass !  
-- [ ] Implement Stiffness optimization  
-- [ ] Implement Real mass distribution  
 
 ### Done ✓
 
+- [x] Implement Real mass distribution  
 - [x] Implement Spectral Plot  
+- [x] Adding SDL, LL to distributed mass !  
+- [x] Implement Stiffness optimization  
 

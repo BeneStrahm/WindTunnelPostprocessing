@@ -36,83 +36,82 @@ from helpers.txtEditor import writeToTxt
 def main():
     # Get name of input file
     # fname = sys.argv [1]
-    ########
-    # T115_6
-    ########
-    # fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
-    fname = "C://Users//bstra//GitHub//WindTunnelPostprocessing//T115_6//T115_6_000.mat"
-
-    # File
-    save_as= ('T115_6/results/SLS_design.txt')
-
-    # Clean up results folder
-    delFilesInFolder('T115_6/results')
-
-    # Full scale building properties
-    uH      = 38.96             # m/s       // Wind speed at z = H (50yr)
-    H       = 160               # m         // Building height
-    B       = 32                # m         // Building width
-    nF      = 40                #           // Number of floors
-    nM      = 5                 #           // Number of modules
-    b       = 16                # m         // Core wall thickness    
-    D       = 0.02              # %         // Damping
-    I       = 956.191           # m4        // Starting value
-    E       = 28900 * 10 ** 3   # kN/m2     // E-Modulus
-
-    # Mass calculation (in t)
-    M_DL_Floor  = 25600  
-    M_DL_Col    = 401
-    M_DL_IWall  = 3200
-
     # ########
-    # # T114_6
+    # # T115_6
     # ########
     # # fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
-    # fname = "C://Users//bstra//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
+    # fname = "C://Users//bstra//GitHub//WindTunnelPostprocessing//T115_6//T115_6_000.mat"
 
     # # File
-    # save_as= ('T114_6/results/SLS_design.txt')
+    # save_as= ('T115_6/results/SLS_design.txt')
 
     # # Clean up results folder
-    # delFilesInFolder('T114_6/results')
+    # delFilesInFolder('T115_6/results')
 
     # # Full scale building properties
-    # uH      = 37.59             # m/s       // Wind speed at z = H (50yr)
-    # H       = 128               # m         // Building height
+    # uH      = 38.96             # m/s       // Wind speed at z = H (50yr)
+    # H       = 160               # m         // Building height
     # B       = 32                # m         // Building width
-    # nF      = 32                #           // Number of floors
-    # nM      = 4                 #           // Number of modules
+    # nF      = 40                #           // Number of floors
+    # nM      = 5                 #           // Number of modules
     # b       = 16                # m         // Core wall thickness    
     # D       = 0.02              # %         // Damping
-    # I       = 477.924           # m4        // Starting value
+    # I       = 956.191           # m4        // Starting value
     # E       = 28900 * 10 ** 3   # kN/m2     // E-Modulus
 
     # # Mass calculation (in t)
-    # M_DL_Floor  = 20480  
-    # M_DL_Col    = 266
-    # M_DL_IWall  = 2560
+    # M_DL_Floor  = 25600  
+    # M_DL_Col    = 401
+    # M_DL_IWall  = 3200
+
+    ########
+    # T114_6
+    ########
+    # fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
+    fname = "C://Users//bstra//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
+
+    # File
+    save_as= ('T114_6/results/SLS_design.txt')
+
+    # Clean up results folder
+    delFilesInFolder('T114_6/results')
+
+    # Full scale building properties
+    uH      = 37.59             # m/s       // Wind speed at z = H (50yr)
+    H       = 128               # m         // Building height
+    B       = 32                # m         // Building width
+    nF      = 32                #           // Number of floors
+    nM      = 4                 #           // Number of modules
+    b       = 16                # m         // Core wall thickness    
+    D       = 0.02              # %         // Damping
+    I       = 477.924           # m4        // Starting value
+    E       = 28900 * 10 ** 3   # kN/m2     // E-Modulus
+
+    # Mass calculation (in t)
+    M_DL_Floor  = 20480  
+    M_DL_Col    = 266
+    M_DL_IWall  = 2560
+
+    #########################
 
     M_SDL_Floor = 1.0 * 0.100 * (B**2) * nF
     M_LL_Floor  = 0.2 * 0.250 * (B**2) * nF
 
-    M_tot       = M_DL_Floor + M_DL_Col + M_DL_IWall + M_SDL_Floor + M_LL_Floor 
-
-    mue     = (M_tot) / H       # t/m      # t/m       // Only from vertical loading/slabs 
     dns     = ['D', 'L']
 
     # Design criteria
     # Wall thickness
-    t = np.arange(0.15, 0.85, 0.05)
+    t = np.arange(0.15, 1.00, 0.025)
 
     # Moment of Intertia   
     I = ((b+t)**4-(b-t)**4)/12
 
     # Stiff. red. per module
-    stiff_red = 0.2
+    stiff_red = 0.0
 
     # ULS
     # SLS
-    u_lim   = H / 600         # u_r_max < u_lim
+    u_lim   = H / 600           # u_r_max < u_lim
     a_lim   = 10 * 0.003        # a_r_rms < a_lim, ISO 10137 1-yr return limit for offices
 
     # Design for each direction
@@ -140,8 +139,10 @@ def main():
             rPeriod = "uH_050"  
 
             # Initialize building model properties
-            buildProp = modelProp.buildProp(H, B, nF, nM, dn, E, I_iter,  mue, D, windStats.uH[rPeriod], \
+            buildProp = modelProp.buildProp(H, B, nF, nM, dn, E, I_iter, D, windStats.uH[rPeriod], \
                                             structSys='concreteCore', t=t_iter, bCore=b)
+
+            buildProp.calcBuildMass(M_DL_Floor, M_DL_Col, M_DL_IWall, M_SDL_Floor, M_LL_Floor)
                 
             # Load aerodynamic forces in model scale
             wtModelAeroForces = aeroForces.wtModelAeroForces()
@@ -172,17 +173,17 @@ def main():
             responseDeflections = response.responseDeflection(feModel, responseForces, buildAeroForces.LF_p)
             delta_tip_r_max = responseDeflections.delta_tip_r_max
 
+            writeToTxt(save_as, "Iteration:           " + str(i))
+            writeToTxt(save_as, "Wall thickness:      " + '{:02.3f}'.format(t[i]))
+            writeToTxt(save_as, "Mom. of Intertia:    " + '{:02.3f}'.format(I[i]))
+            writeToTxt(save_as, "Total mass:          " + '{:02.3f}'.format(buildProp.M_DL_Tot))
+            writeToTxt(save_as, "Core wall mass:      " + '{:02.3f}'.format(buildProp.M_DL_CWall))
+            writeToTxt(save_as, "u_r_max:             " + '{:02.3f}'.format(delta_tip_r_max))
+            writeToTxt(save_as, "u_lim /u_r_max:      " + '{:02.3f}'.format(u_lim / delta_tip_r_max))
+            writeToTxt(save_as, "--------------") 
+
             # Set counter for next iteration
             i = i + 1
-
-        writeToTxt(save_as, "Iteration:           " + str(i))
-        writeToTxt(save_as, "Wall thickness:      " + '{:02.3f}'.format(t[i]))
-        writeToTxt(save_as, "Mom. of Intertia:    " + '{:02.3f}'.format(I[i]))
-        writeToTxt(save_as, "Total mass:          " + '{:02.3f}'.format(feModel.MTot))
-        writeToTxt(save_as, "Total mass:          " + '{:02.3f}'.format(np.sum(feModel.M)))
-        writeToTxt(save_as, "u_r_max:             " + '{:02.3f}'.format(delta_tip_r_max))
-        writeToTxt(save_as, "u_lim /u_r_max:      " + '{:02.3f}'.format(u_lim / delta_tip_r_max))
-        writeToTxt(save_as, "--------------") 
 
         # Design for accelerations
         writeToTxt(save_as, "Design for accelerations")
@@ -196,7 +197,9 @@ def main():
             rPeriod = "uH_002" 
             
             # Initialize building model properties
-            buildProp = modelProp.buildProp(H, B, nF, nM, dn, E, I_iter, mue, D, windStats.uH[rPeriod])
+            buildProp = modelProp.buildProp(H, B, nF, nM, dn, E, I_iter, D, windStats.uH[rPeriod], \
+                                            structSys='concreteCore', t=t_iter, bCore=b)
+            buildProp.calcBuildMass(M_DL_Floor, M_DL_Col, M_DL_IWall, M_SDL_Floor, M_LL_Floor)
                 
             # Load aerodynamic forces in model scale
             wtModelAeroForces = aeroForces.wtModelAeroForces()
@@ -212,7 +215,7 @@ def main():
             buildAeroForces = aeroForces.buildAeroForces(scalingFactors, wtModelAeroForces)
 
             # Create analysis model
-            feModel = fea.feModel(buildProp, t_iter)
+            feModel = fea.feModel(buildProp, stiff_red)
 
             # Compute eigenfrequencies
             feModel.getEigenfrequency()
@@ -227,16 +230,17 @@ def main():
             responseAccelerations = response.responseAccelerations(feModel, buildAeroForces.BM_p, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
             a_r_rms = responseAccelerations.a_r_std
 
+            writeToTxt(save_as, "Iteration:           " + str(i))
+            writeToTxt(save_as, "Wall thickness:      " + '{:02.3f}'.format(t[i]))
+            writeToTxt(save_as, "Mom. of Intertia:    " + '{:02.3f}'.format(I[i]))
+            writeToTxt(save_as, "Total mass:          " + '{:02.3f}'.format(buildProp.M_DL_Tot))
+            writeToTxt(save_as, "Core wall mass:      " + '{:02.3f}'.format(buildProp.M_DL_CWall))
+            writeToTxt(save_as, "a_r_rms:             " + '{:02.3f}'.format(a_r_rms))
+            writeToTxt(save_as, "a_lim /a_r_rms:      " + '{:02.3f}'.format(a_lim / a_r_rms))
+            writeToTxt(save_as, "--------------") 
+
             # Set counter for next iteration
             i = i + 1
-
-        writeToTxt(save_as, "Iteration:           " + str(i))
-        writeToTxt(save_as, "Wall thickness:      " + '{:02.3f}'.format(t[i]))
-        writeToTxt(save_as, "Mom. of Intertia:    " + '{:02.3f}'.format(I[i]))
-        writeToTxt(save_as, "Total mass:          " + '{:02.3f}'.format(feModel.MTot))
-        writeToTxt(save_as, "a_r_rms:             " + '{:02.3f}'.format(a_r_rms))
-        writeToTxt(save_as, "a_lim /a_r_rms:      " + '{:02.3f}'.format(a_lim / a_r_rms))
-        writeToTxt(save_as, "--------------") 
 
         # plt.plot2D([u_design, u_design, u_design], [M_r_max/M_r_max[-1], delta_r_max/delta_r_max[-1] , a_r_max/a_r_max[-1]], 'Wind Speed', 'Normalized response',
         # 'Direction ' + dn, ['M_r_max', 'delta_r_max', 'a_r_max'], showPlt=True)

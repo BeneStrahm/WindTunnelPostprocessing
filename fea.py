@@ -101,6 +101,10 @@ class feModel:
 
         # Determine coords. where reductions shall be made
         hModule = buildProp.H / buildProp.nM
+
+        # Reset wall mass to 0
+        buildProp.M_DL_CWall  = 0
+        buildProp.recalcBuildMass()
         
         # Remark: Reverse node order here, going from bottom to tip
         for i in range(1, len(self.nodes)): #! n+1 (support, tip)
@@ -114,15 +118,18 @@ class feModel:
             # Recalculate dist. mass
             # For concrete walls: mue_walls = A_walls [m2] * 2.5 [t/m3]
             if buildProp.structSys == 'concreteCore':
-                mue_walls = ((buildProp.bCore + buildProp.t)**2 - (buildProp.bCore - buildProp.t)**2) * 2.5 
-                mue = buildProp.mue + (1 - stiff_red) ** j * mue_walls
+                mue_DL_CWall= ((buildProp.bCore + buildProp.t)**2 - (buildProp.bCore - buildProp.t)**2) * 2.5 
+                mue_SLS_Tot = buildProp.M_SLS_Tot / buildProp.H + (1 - stiff_red) ** j * mue_DL_CWall
+
+                # Add mass of walls to total mass            
+                buildProp.M_DL_CWall += mue_DL_CWall * (self.nodes[-i-1].y - self.nodes[-i].y) 
             
             else:
                 raise('No structural system specified')
 
             ## MATERIAL
             # -------------
-            self.material = Material("Dummy", buildProp.E, 0.3, mue, colour='w')
+            self.material = Material("Dummy", buildProp.E, 0.3, mue_SLS_Tot, colour='w')
 
             ## SECTION
             # -------------
@@ -138,12 +145,14 @@ class feModel:
             beam = self.analysis.create_element(
                    el_type='EB2-2D', nodes=[self.nodes[-i], self.nodes[-i-1]], material=self.material, section=self.section)
             self.beams.append(beam)
-            
+
             # Print stiffness distribution for control
             # print('at z = ' + str(self.nodes[-i].y))
             # print('I = ' + str(beam.section.ixx))
+        
+        # Recalculate the building mass, now with walls
+        buildProp.recalcBuildMass()
             
-
         # boundary conditions are objects
         self.freedom_case = cases.FreedomCase()
         self.freedom_case.add_nodal_support(node=self.nodes[-1], val=0, dof=0)
@@ -173,11 +182,11 @@ class feModel:
         solver.assign_dofs()
 
         # Get the global stiffness / mass matrix
-        (K, Kg) = solver.assemble_stiff_matrix()
-        self.M = solver.assemble_mass_matrix()
+        (self.K, self.Kg)   = solver.assemble_stiff_matrix()
+        self.M              = solver.assemble_mass_matrix()
 
         # apply the boundary conditions
-        self.K_mod = solver.remove_constrained_dofs(K=K, analysis_case=analysis_case)
+        self.K_mod = solver.remove_constrained_dofs(K=self.K, analysis_case=analysis_case)
         self.M_mod = solver.remove_constrained_dofs(K=self.M, analysis_case=analysis_case)
 
         # Solve for the eigenvalues
@@ -220,6 +229,9 @@ class feModel:
                     # Add loading to this node
                     F_p = np.mean(F_p_j[j])        #[in KN]
                     self.load_case.add_nodal_load(node=self.nodes[i], val=F_p , dof=0) 
+                    # Check applied loading
+                    # print('at z = '+ str(z_j) )
+                    # print('F_p  = '+ str(F_p) )
 
         # an analysis case relates a support case to a load case
         analysis_case = cases.AnalysisCase(freedom_case=self.freedom_case, load_case=self.load_case)
@@ -242,7 +254,7 @@ class feModel:
         # there are plenty of post processing options!
         # self.analysis.post.plot_geom(analysis_case=analysis_case)
         # self.analysis.post.plot_geom(analysis_case=analysis_case, deformed=True, def_scale=1e2)
-        self.analysis.post.plot_frame_forces(analysis_case=analysis_case, shear=True)
+        # self.analysis.post.plot_frame_forces(analysis_case=analysis_case, shear=True)
         # self.analysis.post.plot_frame_forces(analysis_case=analysis_case, moment=True)
         # self.analysis.post.plot_reactions(analysis_case=analysis_case)
         
@@ -251,8 +263,7 @@ class feModel:
             if support.dof in [5]:
                 reaction = support.get_reaction(analysis_case=analysis_case)
         
-        print('BASE FORCE')
-        print(reaction)
+        # print('Base mom. Mx = ' + str(reaction))
 
         # read out deformation at top 
         delta_tip = self.nodes[0].get_displacements(analysis_case)[0]

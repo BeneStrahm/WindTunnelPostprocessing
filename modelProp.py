@@ -162,7 +162,7 @@ class buildProp():
     :cvar t: core wall thickness at the base [m]
     :vartype t: float
     """
-    def __init__(self, H, B, nF, nM, dn, E, I, mue, D, uH, structSys=None, t=None, bCore=None):
+    def __init__(self, H, B, nF, nM, dn, E, I, D, uH, structSys=None, t=None, bCore=None):
         """Inits the class.
         :param H: full-scale building height [m]
         :type H: float
@@ -178,8 +178,6 @@ class buildProp():
         :type E: float
         :param I: moment of inertia in drag direction [m4]
         :type I: float
-        :param mue: mass distribution [t/m]
-        :type mue: float
         :param D: Damping [%]
         :type D: float
         :param uH: full scale wind speed at top of the building [m/s]
@@ -211,7 +209,6 @@ class buildProp():
         self.E      = E
 
         # Dynamic properties
-        self.mue    = mue
         self.D      = D
 
         # Atmospheric properties
@@ -243,6 +240,37 @@ class buildProp():
         self.dT     = 1 / self.fq_sp
         self.T      = wtModelProp.T * scalingFactors.lambda_t
         self.nT     = int(self.T * self.fq_sp) 
+
+    def calcBuildMass(self, M_DL_Floor, M_DL_Col, M_DL_IWall, M_SDL_Floor, M_LL_Floor):
+        """scale wind tunnel model data to full scale
+        :param wtModelProp: model scale properties of the building
+        :type wtModelProp: :class:`~modelProp.wtModelProp`
+        :param scalingFactors: scaling factors from wind tunnel to building scale
+        :type scalingFactors: :class:`~scaling.scalingFactors`
+        """
+        # Coordinates [in m], number and face of measurement points
+        self.M_DL_Floor  = M_DL_Floor  
+        self.M_DL_Col    = M_DL_Col
+        self.M_DL_IWall  = M_DL_IWall
+
+        # Mass of core wall is automatically in fea.__init__()
+        self.M_DL_CWall  = 0
+
+        self.M_SDL_Floor = 1.0 * 0.100 * (self.B**2) * self.nF
+        self.M_LL_Floor  = 0.2 * 0.250 * (self.B**2) * self.nF
+
+        self.M_DL_Tot    = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall
+        self.M_SLS_Tot   = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
+
+    def recalcBuildMass(self):
+        self.M_DL_Tot    = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall
+        self.M_SLS_Tot   = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
+
+
 
 # ------------------------------------------------------------------------------
 # Functions
