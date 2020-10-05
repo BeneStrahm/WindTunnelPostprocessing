@@ -53,9 +53,9 @@ def main():
     B       = 32                # m         // Building width
     nF      = 40                #           // Number of floors
     nM      = 5                 #           // Number of modules
-    b       = 16                # m         // Core wall thickness    
+    b       = 16                # m         // Core wall width 
+    t       = 0.35              # m         // Core wall thickness   
     D       = 0.02              # %         // Damping
-    t       = 0.35              # m         // Starting value
     I       = 956.191           # m4        // Starting value
     E       = 28900 * 10 ** 3   # kN/m2     // E-Modulus
 
@@ -63,6 +63,37 @@ def main():
     M_DL_Floor  = 25600  
     M_DL_Col    = 401
     M_DL_IWall  = 3200
+
+    # ########
+    # # T114_6
+    # ########
+    # # fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
+    # fname = "C://Users//bstra//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
+
+    # # File
+    # save_as= ('T114_6/results/SLS_design.txt')
+
+    # # Clean up results folder
+    # delFilesInFolder('T114_6/results')
+
+    # # Full scale building properties
+    # uH      = 37.59             # m/s       // Wind speed at z = H (50yr)
+    # H       = 128               # m         // Building height
+    # B       = 32                # m         // Building width
+    # nF      = 32                #           // Number of floors
+    # nM      = 4                 #           // Number of modules
+    # b       = 16                # m         // Core wall width 
+    # t       = 0.175             # m         // Core wall thickness    
+    # D       = 0.02              # %         // Damping
+    # I       = 477.924           # m4        // Starting value
+    # E       = 28900 * 10 ** 3   # kN/m2     // E-Modulus
+
+    # # Mass calculation (in t)
+    # M_DL_Floor  = 20480  
+    # M_DL_Col    = 266
+    # M_DL_IWall  = 2560
+
+    #########################
 
     M_SDL_Floor = 1.0 * 0.100 * (B**2) * nF
     M_LL_Floor  = 0.2 * 0.250 * (B**2) * nF
