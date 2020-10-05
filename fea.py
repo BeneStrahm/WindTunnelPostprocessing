@@ -122,7 +122,7 @@ class feModel:
                 mue_SLS_Tot = buildProp.M_SLS_Tot / buildProp.H + (1 - stiff_red) ** j * mue_DL_CWall
 
                 # Add mass of walls to total mass            
-                buildProp.M_DL_CWall += mue_DL_CWall * (self.nodes[-i-1].y - self.nodes[-i].y) 
+                buildProp.M_DL_CWall += (1 - stiff_red) ** j * mue_DL_CWall * (self.nodes[-i-1].y - self.nodes[-i].y) 
             
             else:
                 raise('No structural system specified')
