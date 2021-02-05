@@ -36,14 +36,14 @@ from helpers.txtEditor import writeToTxt
 def main():
     # Get name of input file
     # fname = sys.argv [1]
-    fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
+    fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T115_6//T115_6_000.mat"
 
     # Clean up results folder
-    delFilesInFolder('T114_6/results')
+    delFilesInFolder('T115_6/results')
 
     # Full scale building properties
     uH_f    = 37.59             # m/s       // Wind speed at z = H (50yr)
-    H_f     = 128               # m         // Building height
+    H_f     = 160               # m         // Building height
     B       = 32                # m         // Building width
     nF      = 32                #           // Number of floors
     b       = 16                # m         // Core wall thickness    
@@ -52,7 +52,7 @@ def main():
     E       = 28900 * 10 ** 3   # kN/m2     // E-Modulus
 
     # File
-    save_as= ('T114_6/results/SLS_design.txt')
+    save_as= ('T115_6/results/SLS_design.txt')
 
     # Mass calculation (in t)
     M_DL_Floor  = 20480  

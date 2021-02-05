@@ -35,14 +35,14 @@ from helpers.filemanager import delFilesInFolder
 def main():
     # Get name of input file
     # fname = sys.argv [1]
-    fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T114_6//T114_6_000.mat"
+    fname = "C://Users//ac135564//GitHub//WindTunnelPostprocessing//T115_6//T115_6_000.mat"
 
     # Clean up results folder
-    delFilesInFolder('results')
+    delFilesInFolder('T115_6/results')
 
     # Full scale building properties
     uH_f    = 37.59             # m/s
-    H_f     = 128               # m
+    H_f     = 160               # m
     B       = 32                # m
     D       = 0.02              # %
     I       = 477.924           # m4
@@ -94,18 +94,18 @@ def main():
 
                 # # Calc response forces
                 responseForces = response.responseForces(buildAeroForces.BM_p, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-                responseForces.writeResultsToFile("T114_6/results/" + dn + "_forces.txt", windStats.uH[rPeriod], rPeriod)
-                responseForces.plotLoadSpectum(windStats, buildProp, feModel, responseForces, "T114_6/results/" + dn + "_loadSpectrum", mode='reduced')
-                responseForces.plotResponseSpectrum(windStats, buildProp, feModel, responseForces, "T114_6/results/" + dn + "_responseSpectrum", mode='real')
+                responseForces.writeResultsToFile("T115_6/results/" + dn + "_forces.txt", windStats.uH[rPeriod], rPeriod)
+                responseForces.plotLoadSpectum(windStats, buildProp, feModel, responseForces, "T115_6/results/" + dn + "_loadSpectrum", mode='reduced')
+                responseForces.plotResponseSpectrum(windStats, buildProp, feModel, responseForces, "T115_6/results/" + dn + "_responseSpectrum", mode='real')
 
                 # Calc response deflections
                 responseDeflections = response.responseDeflection(feModel, responseForces, buildAeroForces.LF_p)
-                responseDeflections.writeResultsToFile("T114_6/results/" + dn + "_deflections.txt", windStats.uH[rPeriod], rPeriod)
+                responseDeflections.writeResultsToFile("T115_6/results/" + dn + "_deflections.txt", windStats.uH[rPeriod], rPeriod)
                 delta_r_max.append(responseDeflections.delta_tip_r_max)
 
                 # Calc response accelerations
                 responseAccelerations = response.responseAccelerations(feModel, buildAeroForces.BM_p, buildProp.dT, feModel.fq_e, buildProp.D, feModel.fq_e, 360)
-                responseAccelerations.writeResultsToFile("T114_6/results/" + dn + "_accelerations.txt", windStats.uH[rPeriod], rPeriod)
+                responseAccelerations.writeResultsToFile("T115_6/results/" + dn + "_accelerations.txt", windStats.uH[rPeriod], rPeriod)
                 a_r_max.append(responseAccelerations.a_r_max)
 
         # plt.plot2D([u_design, u_design, u_design], [M_r_max/M_r_max[-1], delta_r_max/delta_r_max[-1] , a_r_max/a_r_max[-1]], 'Wind Speed', 'Normalized response',
