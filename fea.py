@@ -21,6 +21,7 @@ from feastruct.fea.frame_analysis import FrameAnalysis2D
 from feastruct.solvers.linstatic import LinearStatic
 from feastruct.solvers.naturalfrequency import NaturalFrequency
 from feastruct.solvers.feasolve import SolverSettings
+
 # ------------------------------------------------------------------------------
 # Abbreviations
 # ------------------------------------------------------------------------------
