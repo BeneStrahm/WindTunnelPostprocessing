@@ -113,6 +113,14 @@ class buildProp():
     """Class containing the full scale properties of the building
     :cvar H: full-scale building height [m]
     :vartype H: float
+    :cvar B: full-scale building width [m]
+    :vartype B: float
+    :cvar nF: number of floors
+    :vartype nF: int
+    :cvar nM: number of modules
+    :vartype nM: int
+    :cvar hL: height of the levels [m]
+    :vartype hL: float
     :cvar dn: investigated direction ['D', 'L']
     :vartype dn: str
     :cvar E: E-Modulus [kN/m²]
@@ -147,38 +155,60 @@ class buildProp():
     :vartype T: string
     :cvar nT: number of time steps
     :vartype nT: string
+    :cvar structSys: Type of structural system ['concreteCore']
+    :vartype structSys: str
+    :cvar bCore: core wall width [m]
+    :vartype bCore: float
+    :cvar t: core wall thickness at the base [m]
+    :vartype t: float
     """
-    def __init__(self, H, B, dn, E, I, mue, D, uH):
+    def __init__(self, H, B, nF, nM, dn, E, I, D, uH, structSys=None, t=None, bCore=None):
         """Inits the class.
         :param H: full-scale building height [m]
         :type H: float
         :param B: full-scale building width [m]
         :type B: float
+        :param nF: number of floors
+        :type nF: int
+        :param nM: number of modules
+        :type nM: int
         :param dn: investigated direction ['D', 'L']
         :type dn: str
         :param E: E-Modulus [kN/m²]
         :type E: float
         :param I: moment of inertia in drag direction [m4]
         :type I: float
-        :param mue: mass distribution [t/m]
-        :type mue: float
         :param D: Damping [%]
         :type D: float
         :param uH: full scale wind speed at top of the building [m/s]
         :type uH: float
+        :param structSys: Type of structural system ['concreteCore']
+        :type structSys: str
+        :param bCore: core wall width [m]
+        :type bCore: float
+        :param t: core wall thickness at the base [m]
+        :type t: float
         """
         # Geometric properties
         self.H      = H
         self.B      = B
+        self.nF     = nF
+        self.nM     = nM
+        self.hL     = H / nF
 
-        # Investigated direciton
+        # Structural system dependend variables
+        self.structSys  = structSys
+        self.bCore      = bCore
+        self.t          = t
+
+        # Investigated direction
         self.dn     = dn
+
         # Static properties
         self.I      = I
         self.E      = E
 
         # Dynamic properties
-        self.mue    = mue
         self.D      = D
 
         # Atmospheric properties
@@ -210,6 +240,37 @@ class buildProp():
         self.dT     = 1 / self.fq_sp
         self.T      = wtModelProp.T * scalingFactors.lambda_t
         self.nT     = int(self.T * self.fq_sp) 
+
+    def calcBuildMass(self, M_DL_Floor, M_DL_Col, M_DL_IWall, M_SDL_Floor, M_LL_Floor):
+        """scale wind tunnel model data to full scale
+        :param wtModelProp: model scale properties of the building
+        :type wtModelProp: :class:`~modelProp.wtModelProp`
+        :param scalingFactors: scaling factors from wind tunnel to building scale
+        :type scalingFactors: :class:`~scaling.scalingFactors`
+        """
+        # Coordinates [in m], number and face of measurement points
+        self.M_DL_Floor  = M_DL_Floor  
+        self.M_DL_Col    = M_DL_Col
+        self.M_DL_IWall  = M_DL_IWall
+
+        # Mass of core wall is automatically in fea.__init__()
+        self.M_DL_CWall  = 0
+
+        self.M_SDL_Floor = 1.0 * 0.100 * (self.B**2) * self.nF
+        self.M_LL_Floor  = 0.2 * 0.250 * (self.B**2) * self.nF
+
+        self.M_DL_Tot    = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall
+        self.M_SLS_Tot   = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
+
+    def recalcBuildMass(self):
+        self.M_DL_Tot    = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall
+        self.M_SLS_Tot   = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+                           self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
+
+
 
 # ------------------------------------------------------------------------------
 # Functions

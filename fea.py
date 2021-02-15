@@ -21,6 +21,7 @@ from feastruct.fea.frame_analysis import FrameAnalysis2D
 from feastruct.solvers.linstatic import LinearStatic
 from feastruct.solvers.naturalfrequency import NaturalFrequency
 from feastruct.solvers.feasolve import SolverSettings
+
 # ------------------------------------------------------------------------------
 # Abbreviations
 # ------------------------------------------------------------------------------
@@ -45,7 +46,7 @@ class feModel:
     :cvar coords: Cartesian coordinates of the node
     :vartype coords: list[float, float, float]
     """
-    def __init__(self, buildProp, t = 0):
+    def __init__(self, buildProp, stiff_red = 0):
         """Inits the class, setting up calculation model
         :param buildProp: full scale properties of the building
         :type buildProp: :class:`~modelProp.buildProp`
@@ -58,100 +59,101 @@ class feModel:
         self.L = buildProp.H                # length of the beam [m]
         self.n = buildProp.nz               # no of nodes [-]
         self.z = buildProp.z_lev            # coordinates [m]
-        self.z = np.append(self.L, self.z)  # coordinates [m], append top of building
-        self.z = np.append(self.z, 0)       # coordinates [m], append support node
 
         # everything starts with the analysis object
         self.analysis = FrameAnalysis2D()
 
-        # nodes are objects
-        self.nodes = []
-        for i in range(0,self.n+2): #! n+2 (support, tip)
-            node = self.analysis.create_node(coords=[0, self.z[i]])
-            self.nodes.append(node)
+        ### NODES
+        # -------------
+        # Coordinates for geometrie
+        self.node_coords_geom = []
+        for i in range(buildProp.nF+1):
+            node = i * buildProp.hL
+            self.node_coords_geom.append(node)
+        
+        # Sort from bottom to top of building, 
+        # must be done for inserting loads at right order!
+        self.node_coords_geom = sorted(self.node_coords_geom, reverse=True)
 
-        # and so are beams!
-        design = 'const'
-        if design == "const":
-            # Recalculate dist. mass
-            # mue = [mue(slabs) + mue(sdl) + mue(ll)] + mue(wall = h * A * 2.5t/m3)
-            mue_walls = ((16+t)**2-(16-t)**2) * 2.5 
-            mue = buildProp.mue + 1.0000 * mue_walls
-            feModel.MTot= mue * buildProp.H
+        self.node_coords_load = []
+        for i in range(buildProp.nz):
+            node = round(buildProp.z_lev[i], 1)
+            self.node_coords_load.append(node)
+        
+        # Sort from bottom to top of building, 
+        # must be done for inserting loads at right order!
+        self.node_coords_load = sorted(self.node_coords_load, reverse=True)
+
+        # Merge / sort / remove duplicate nodes
+        self.node_coords = sorted(list(set(self.node_coords_geom + self.node_coords_load)), reverse=True)
             
-            # materials and sections are objects
-            self.material = Material("Dummy", buildProp.E, 0.3, buildProp.mue, colour='w')
-            self.section = Section(area=1, ixx=buildProp.I)
+        # Insert nodes 
+        self.nodes = []
+        for i in range(len(self.node_coords)):
+            node = self.analysis.create_node(coords=[0, self.node_coords[i]])
+            self.nodes.append(node)
+        
+        ## BEAMS
+        # -------------
+        self.beams = []
 
-            self.beams = []
-            for i in range(0,self.n+1): #! n+1 (support, tip)
-                beam = self.analysis.create_element(
-                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material, section=self.section)
-                self.beams.append(beam)
+        # Counter for stiffness reduction
+        j = -1
 
-        elif design == "optimized":
-            self.beams = []
-            # Calc Moment of inertia
-            I = ((16+t/2)**4-(16-t/2)**4)/12
-                    
-            # Minimal stiffnes per section
-            I_min = ((16.0+0.075)**4 - (16.0-0.075)**4)/12
+        # Determine coords. where reductions shall be made
+        hModule = buildProp.H / buildProp.nM
 
-            # Assume dist. stiffness
-            ####                40%
-            ####                
-            ######              60%
-            ######
-            ########            80%
-            ########
-            ##########          100%
-            ##########
+        # Reset wall mass to 0
+        buildProp.M_DL_CWall  = 0
+        buildProp.recalcBuildMass()
+        
+        # Remark: Reverse node order here, going from bottom to tip
+        for i in range(1, len(self.nodes)): #! n+1 (support, tip)
+            # Get z-coord of current node
+            z_i = self.nodes[-i].y
 
-            I_1 = np.max([1.0000 * I, I_min])          # Bottom module
-            I_2 = np.max([0.8000 * I, I_min])
-            I_3 = np.max([0.6000 * I, I_min])	
-            I_4 = np.max([0.4000 * I, I_min])          # Top module
-
-            self.section_1 = Section(area=1, ixx=I_1)
-            self.section_2 = Section(area=1, ixx=I_2)
-            self.section_3 = Section(area=1, ixx=I_3)
-            self.section_4 = Section(area=1, ixx=I_4)
+            # Raise counter if next module for reduction is reached
+            if z_i % hModule == 0:
+                j = j + 1
 
             # Recalculate dist. mass
-            # mue = [mue(slabs) + mue(sdl) + mue(ll)] + mue(wall = h * A * 2.5t/m3)
-            mue_walls = ((16+t)**2-(16-t)**2) * 2.5 
-            mue_1 = buildProp.mue + 1.0000 * mue_walls
-            mue_2 = buildProp.mue + 0.8000 * mue_walls
-            mue_3 = buildProp.mue + 0.6000 * mue_walls
-            mue_4 = buildProp.mue + 0.4000 * mue_walls
+            # For concrete walls: mue_walls = A_walls [m2] * 2.5 [t/m3]
+            if buildProp.structSys == 'concreteCore':
+                mue_DL_CWall= ((buildProp.bCore + buildProp.t)**2 - (buildProp.bCore - buildProp.t)**2) * 2.5 
+                mue_SLS_Tot = buildProp.M_SLS_Tot / buildProp.H + (1 - stiff_red) ** j * mue_DL_CWall
 
-            self.material_1 = Material("Dummy", buildProp.E, 0.3, mue_1, colour='w')
-            self.material_2 = Material("Dummy", buildProp.E, 0.3, mue_2, colour='w')
-            self.material_3 = Material("Dummy", buildProp.E, 0.3, mue_3, colour='w')
-            self.material_4 = Material("Dummy", buildProp.E, 0.3, mue_4, colour='w')
+                # Add mass of walls to total mass            
+                buildProp.M_DL_CWall += (1 - stiff_red) ** j * mue_DL_CWall * (self.nodes[-i-1].y - self.nodes[-i].y) 
+            
+            else:
+                raise('No structural system specified')
 
-            feModel.MTot = (mue_1 + mue_2 + mue_3 + mue_4) * 128 / 4
+            ## MATERIAL
+            # -------------
+            self.material = Material("Dummy", buildProp.E, 0.3, mue_SLS_Tot, colour='w')
 
-            for i in range(0,6): #! n+1 (support, tip)
-                beam = self.analysis.create_element(
-                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_4, section=self.section_4)
-                self.beams.append(beam)
+            ## SECTION
+            # -------------
+            if buildProp.structSys == 'concreteCore':
+                I = buildProp.I * (1 - stiff_red) ** j
+            
+            else:
+                raise('No structural system specified')
 
-            for i in range(6, 11): #! n+1 (support, tip)
-                beam = self.analysis.create_element(
-                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_3, section=self.section_3)
-                self.beams.append(beam)
+            self.section = Section(area=1, ixx=I)
 
-            for i in range(11, 16): #! n+1 (support, tip)
-                beam = self.analysis.create_element(
-                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_2, section=self.section_2)
-                self.beams.append(beam)
+            # Add beams
+            beam = self.analysis.create_element(
+                   el_type='EB2-2D', nodes=[self.nodes[-i], self.nodes[-i-1]], material=self.material, section=self.section)
+            self.beams.append(beam)
 
-            for i in range(16, 21): #! n+1 (support, tip)
-                beam = self.analysis.create_element(
-                    el_type='EB2-2D', nodes=[self.nodes[i], self.nodes[i+1]], material=self.material_1, section=self.section_1)
-                self.beams.append(beam)
-
+            # Print stiffness distribution for control
+            # print('at z = ' + str(self.nodes[-i].y))
+            # print('I = ' + str(beam.section.ixx))
+        
+        # Recalculate the building mass, now with walls
+        buildProp.recalcBuildMass()
+            
         # boundary conditions are objects
         self.freedom_case = cases.FreedomCase()
         self.freedom_case.add_nodal_support(node=self.nodes[-1], val=0, dof=0)
@@ -181,11 +183,11 @@ class feModel:
         solver.assign_dofs()
 
         # Get the global stiffness / mass matrix
-        (K, Kg) = solver.assemble_stiff_matrix()
-        self.M = solver.assemble_mass_matrix()
+        (self.K, self.Kg)   = solver.assemble_stiff_matrix()
+        self.M              = solver.assemble_mass_matrix()
 
         # apply the boundary conditions
-        self.K_mod = solver.remove_constrained_dofs(K=K, analysis_case=analysis_case)
+        self.K_mod = solver.remove_constrained_dofs(K=self.K, analysis_case=analysis_case)
         self.M_mod = solver.remove_constrained_dofs(K=self.M, analysis_case=analysis_case)
 
         # Solve for the eigenvalues
@@ -219,9 +221,18 @@ class feModel:
         # Adding loads
         self.load_case = cases.LoadCase()
 
-        for i in range(self.n):
-            F_p = np.mean(F_p_j[i])        #[in KN]
-            self.load_case.add_nodal_load(node=self.nodes[i+1], val=F_p , dof=0) # i+1 (support, tip)
+        # Loop over all nodes
+        for j in range(len(F_p_j)):
+            # Search for node by z coordinate
+            z_j = self.node_coords_load[j]
+            for i in range(len(self.node_coords)):
+                if z_j == self.node_coords[i]:
+                    # Add loading to this node
+                    F_p = np.mean(F_p_j[j])        #[in KN]
+                    self.load_case.add_nodal_load(node=self.nodes[i], val=F_p , dof=0) 
+                    # Check applied loading
+                    # print('at z = '+ str(z_j) )
+                    # print('F_p  = '+ str(F_p) )
 
         # an analysis case relates a support case to a load case
         analysis_case = cases.AnalysisCase(freedom_case=self.freedom_case, load_case=self.load_case)
@@ -243,15 +254,17 @@ class feModel:
         # ----
         # there are plenty of post processing options!
         # self.analysis.post.plot_geom(analysis_case=analysis_case)
-        # analysis.post.plot_geom(analysis_case=analysis_case, deformed=True, def_scale=1e2)
-        # analysis.post.plot_frame_forces(analysis_case=analysis_case, shear=True)
+        # self.analysis.post.plot_geom(analysis_case=analysis_case, deformed=True, def_scale=1e2)
+        # self.analysis.post.plot_frame_forces(analysis_case=analysis_case, shear=True)
         # self.analysis.post.plot_frame_forces(analysis_case=analysis_case, moment=True)
-        # analysis.post.plot_reactions(analysis_case=analysis_case)
+        # self.analysis.post.plot_reactions(analysis_case=analysis_case)
         
         # Support reactions, to check bending moment for validation
         for support in analysis_case.freedom_case.items:
             if support.dof in [5]:
                 reaction = support.get_reaction(analysis_case=analysis_case)
+        
+        # print('Base mom. Mx = ' + str(reaction))
 
         # read out deformation at top 
         delta_tip = self.nodes[0].get_displacements(analysis_case)[0]
