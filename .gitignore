@@ -133,3 +133,6 @@ dmypy.json
 
 # Results folder
 results/
+
+# TPU Sample Data
+TPU_*

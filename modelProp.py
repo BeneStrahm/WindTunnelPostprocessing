@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Description:  
+# Description:
 # Author:       benedikt.strahm@ilek.uni-stuttgart.de
 # Created:      2020-09-22
 # Execution:    Import functions / collections (from folder.file import func)
@@ -7,8 +7,8 @@
 
 # ------------------------------------------------------------------------------
 # Libraries
-# ------------------------------------------------------------------------------  
-import hdf5storage as h5s    
+# ------------------------------------------------------------------------------
+import hdf5storage as h5s
 import numpy as np
 # ------------------------------------------------------------------------------
 # Imported functions
@@ -19,7 +19,7 @@ import numpy as np
 # p...  load
 # r...  response
 # ms... model scale
-# fs... full scale 
+# fs... full scale
 # L...  lift
 # D...  drag
 # M...  moment
@@ -30,7 +30,9 @@ import numpy as np
 # dn... direction
 # ------------------------------------------------------------------------------
 # Classes
-# ------------------------------------------------------------------------------  
+# ------------------------------------------------------------------------------
+
+
 class wtModelProp:
     """Class containing the model scale properties of the building
     :cvar fname: full path to file w/ wind tunnel data
@@ -64,50 +66,52 @@ class wtModelProp:
     :cvar nT: number of time steps
     :vartype nT: string
     """
+
     def __init__(self, fname):
         """Inits the class
         :param fname: full path to file w/ wind tunnel data
         :type fname: string
         """
-        self.fname  = fname
+        self.fname = fname
 
     def loadTPUModelProp(self):
         """Loading wind tunnel model characteristics
-        """        
+        """
         # Load matlab file
-        mat     = h5s.loadmat(self.fname)
+        mat = h5s.loadmat(self.fname)
 
         # Geometrie
-        self.H  = float(mat['Building_height'][0])
+        self.H = float(mat['Building_height'][0])
 
         # Measurement locations
-        self.Loc    = mat['Location_of_measured_points']
+        self.Loc = mat['Location_of_measured_points']
 
         # Coordinates [in m], number and face of measurement points
-        self.x      = self.Loc[0]
-        self.z      = self.Loc[1]
-        self.n      = self.Loc[2]
-        self.face   = self.Loc[3]
+        self.x = self.Loc[0]
+        self.z = self.Loc[1]
+        self.n = self.Loc[2]
+        self.face = self.Loc[3]
 
         # Measurement area [in m2]
-        self.A_i    = 0.02 * 0.02
+        self.A_i = 0.02 * 0.02
 
         # Air density
-        self.rho_air= 1.25
+        self.rho_air = 1.25
 
         # Get levels & sort them
-        self.z_lev  = np.unique(self.z)
-        self.z_lev  = self.z_lev[::-1]
-        self.nz     = len(self.z_lev)
+        self.z_lev = np.unique(self.z)
+        self.z_lev = self.z_lev[::-1]
+        self.nz = len(self.z_lev)
 
         # Wind speeds
-        self.uH     = float(mat['Uh_AverageWindSpeed'][0])
+        self.uH = float(mat['Uh_AverageWindSpeed'][0])
 
         # Time scales
-        self.fq_sp  = float(mat['Sample_frequency'][0])
-        self.dT     = 1 / self.fq_sp
-        self.T      = float(mat['Sample_period'][0])
-        self.nT     = int(self.T * self.fq_sp) 
+        self.fq_sp = float(mat['Sample_frequency'][0])
+        self.dT = 1 / self.fq_sp
+        self.T = float(mat['Sample_period'][0])
+        self.nT = int(self.T * self.fq_sp)
+
 
 class buildProp():
     """Class containing the full scale properties of the building
@@ -162,12 +166,17 @@ class buildProp():
     :cvar t: core wall thickness at the base [m]
     :vartype t: float
     """
-    def __init__(self, H, B, nF, nM, dn, E, I, D, uH, structSys=None, t=None, bCore=None):
+
+    def __init__(self, H, B, uH, nF=32, nM=4, dn=['D', 'L'],
+                 E=28900 * 10 ** 3, I=477.924, D=0.02,
+                 structSys=None, t=None, bCore=None):
         """Inits the class.
         :param H: full-scale building height [m]
         :type H: float
         :param B: full-scale building width [m]
         :type B: float
+        :param uH: full scale wind speed at top of the building [m/s]
+        :type uH: float
         :param nF: number of floors
         :type nF: int
         :param nM: number of modules
@@ -180,8 +189,6 @@ class buildProp():
         :type I: float
         :param D: Damping [%]
         :type D: float
-        :param uH: full scale wind speed at top of the building [m/s]
-        :type uH: float
         :param structSys: Type of structural system ['concreteCore']
         :type structSys: str
         :param bCore: core wall width [m]
@@ -190,29 +197,29 @@ class buildProp():
         :type t: float
         """
         # Geometric properties
-        self.H      = H
-        self.B      = B
-        self.nF     = nF
-        self.nM     = nM
-        self.hL     = H / nF
+        self.H = H
+        self.B = B
+        self.nF = nF
+        self.nM = nM
+        self.hL = H / nF
 
         # Structural system dependend variables
-        self.structSys  = structSys
-        self.bCore      = bCore
-        self.t          = t
+        self.structSys = structSys
+        self.bCore = bCore
+        self.t = t
 
         # Investigated direction
-        self.dn     = dn
+        self.dn = dn
 
         # Static properties
-        self.I      = I
-        self.E      = E
+        self.I = I
+        self.E = E
 
         # Dynamic properties
-        self.D      = D
+        self.D = D
 
         # Atmospheric properties
-        self.uH     = uH
+        self.uH = uH
 
     def scaleBuildProp(self, wtModelProp, scalingFactors):
         """scale wind tunnel model data to full scale
@@ -222,24 +229,24 @@ class buildProp():
         :type scalingFactors: :class:`~scaling.scalingFactors`
         """
         # Coordinates [in m], number and face of measurement points
-        self.x      = wtModelProp.x * scalingFactors.lambda_g
-        self.z      = wtModelProp.z * scalingFactors.lambda_g
+        self.x = wtModelProp.x * scalingFactors.lambda_g
+        self.z = wtModelProp.z * scalingFactors.lambda_g
 
         # Measurement area [in m2]
-        self.A_i    = wtModelProp.A_i * scalingFactors.lambda_g ** 2
+        self.A_i = wtModelProp.A_i * scalingFactors.lambda_g ** 2
 
         # Air density
-        self.rho_air= 1.25
+        self.rho_air = 1.25
 
         # Get levels & sort them
-        self.z_lev  = wtModelProp.z_lev * scalingFactors.lambda_g
-        self.nz     = len(self.z_lev)
+        self.z_lev = wtModelProp.z_lev * scalingFactors.lambda_g
+        self.nz = len(self.z_lev)
 
         # Time scales
-        self.fq_sp  = wtModelProp.fq_sp * scalingFactors.lambda_fq
-        self.dT     = 1 / self.fq_sp
-        self.T      = wtModelProp.T * scalingFactors.lambda_t
-        self.nT     = int(self.T * self.fq_sp) 
+        self.fq_sp = wtModelProp.fq_sp * scalingFactors.lambda_fq
+        self.dT = 1 / self.fq_sp
+        self.T = wtModelProp.T * scalingFactors.lambda_t
+        self.nT = int(self.T * self.fq_sp)
 
     def calcBuildMass(self, M_DL_Floor, M_DL_Col, M_DL_IWall, M_SDL_Floor, M_LL_Floor):
         """scale wind tunnel model data to full scale
@@ -249,32 +256,31 @@ class buildProp():
         :type scalingFactors: :class:`~scaling.scalingFactors`
         """
         # Coordinates [in m], number and face of measurement points
-        self.M_DL_Floor  = M_DL_Floor  
-        self.M_DL_Col    = M_DL_Col
-        self.M_DL_IWall  = M_DL_IWall
+        self.M_DL_Floor = M_DL_Floor
+        self.M_DL_Col = M_DL_Col
+        self.M_DL_IWall = M_DL_IWall
 
         # Mass of core wall is automatically in fea.__init__()
-        self.M_DL_CWall  = 0
+        self.M_DL_CWall = 0
 
         self.M_SDL_Floor = 1.0 * 0.100 * (self.B**2) * self.nF
-        self.M_LL_Floor  = 0.2 * 0.250 * (self.B**2) * self.nF
+        self.M_LL_Floor = 0.2 * 0.250 * (self.B**2) * self.nF
 
-        self.M_DL_Tot    = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
-                           self.M_DL_CWall
-        self.M_SLS_Tot   = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
-                           self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
+        self.M_DL_Tot = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+            self.M_DL_CWall
+        self.M_SLS_Tot = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+            self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
 
     def recalcBuildMass(self):
-        self.M_DL_Tot    = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
-                           self.M_DL_CWall
-        self.M_SLS_Tot   = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
-                           self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
-
+        self.M_DL_Tot = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+            self.M_DL_CWall
+        self.M_SLS_Tot = self.M_DL_Floor + self.M_DL_Col + self.M_DL_IWall + \
+            self.M_DL_CWall + self.M_SDL_Floor + self.M_LL_Floor
 
 
 # ------------------------------------------------------------------------------
 # Functions
-# ------------------------------------------------------------------------------   
+# ------------------------------------------------------------------------------
 
 def test():
     a = wtModelProp("T115_4_000_1.mat")
